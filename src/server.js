@@ -95,6 +95,20 @@ function normalizeMeetingLocation(input) {
   return "";
 }
 
+function renderMeetingLocation(location) {
+  const value = String(location || "").trim();
+  if (!value) {
+    return "";
+  }
+
+  if (/^https:\/\/(?:[\w-]+\.)*unc\.zoom\.us\//i.test(value)) {
+    const safeUrl = escapeHtml(value);
+    return `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer">${safeUrl}</a>`;
+  }
+
+  return escapeHtml(value);
+}
+
 function renderLayout({ title, body, notice = "", error = "" }) {
   return `<!DOCTYPE html>
   <html lang="en">
@@ -211,7 +225,7 @@ function buildStatusPanel(user, activeEntry) {
         </div>
         <p>You can only see your own queue position. Other students are not shown.</p>
         <p><strong>${escapeHtml(activeEntry.course_context)}</strong><br>${escapeHtml(activeEntry.help_topic)}</p>
-        <p><strong>Location:</strong> ${escapeHtml(activeEntry.meeting_location)}</p>
+        <p><strong>Location:</strong> ${renderMeetingLocation(activeEntry.meeting_location)}</p>
         <form method="post" action="/queue/leave">
           <button class="secondary-button" type="submit">Leave queue</button>
         </form>
@@ -347,7 +361,7 @@ function renderInstructorPage({ user, activeQueue, dashboard, notice, error }) {
                 <td>${escapeHtml(entry.student_name)}</td>
                 <td>${escapeHtml(entry.course_context)}</td>
                 <td>${escapeHtml(entry.help_topic)}</td>
-                <td>${escapeHtml(entry.meeting_location)}</td>
+                <td>${renderMeetingLocation(entry.meeting_location)}</td>
                 <td>${formatDuration(entry.wait_seconds)}</td>
                 <td class="action-cell">
                   <form method="post" action="/instructor/entries/${entry.id}/complete">
@@ -372,7 +386,7 @@ function renderInstructorPage({ user, activeQueue, dashboard, notice, error }) {
                 <td>${escapeHtml(entry.student_name)}</td>
                 <td>${escapeHtml(entry.course_context)}</td>
                 <td>${escapeHtml(entry.help_topic)}</td>
-                <td>${escapeHtml(entry.meeting_location)}</td>
+                <td>${renderMeetingLocation(entry.meeting_location)}</td>
                 <td>${formatDuration(entry.wait_seconds)}</td>
                 <td>${new Date(entry.completed_at).toLocaleTimeString()}</td>
               </tr>

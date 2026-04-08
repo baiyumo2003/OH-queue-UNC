@@ -86,3 +86,21 @@ test("resolveUser applies role override for allowed switch user", () => {
   assert.equal(user.role, "instructor");
   assert.equal(user.canSwitchRoles, true);
 });
+
+test("resolveUser prefers preferred name headers over onyen", () => {
+  process.env.TRUST_PROXY_AUTH = "true";
+  process.env.ALLOW_DEV_AUTH = "false";
+  process.env.INSTRUCTOR_IDS = "";
+  process.env.ROLE_SWITCH_USERS = "";
+
+  const req = {
+    headers: {
+      http_uid: "abc123",
+      preferredname: "Alex Zhang"
+    }
+  };
+
+  const user = resolveUser(req);
+  assert.equal(user.userId, "abc123");
+  assert.equal(user.displayName, "Alex Zhang");
+});

@@ -59,7 +59,17 @@ function getForwardedUser(req) {
 }
 
 function getForwardedName(req) {
-  const candidates = ["displayname", "x-display-name", "cn"];
+  const candidates = [
+    "displayname",
+    "display_name",
+    "display-name",
+    "preferredname",
+    "preferred_name",
+    "preferred-name",
+    "name",
+    "x-display-name",
+    "cn"
+  ];
 
   for (const key of candidates) {
     const value = readHeader(req, key);
