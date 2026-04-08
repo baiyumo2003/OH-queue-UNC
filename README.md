@@ -5,8 +5,9 @@ A small queue web application for UNC office hours or help sessions.
 Features:
 
 - Students sign in with UNC SSO and join the queue.
-- Students can see their current place in line and waiting time.
-- Instructors can open a dashboard with live wait times and daily summary stats.
+- Students can only see their own position, wait time, and how many people are ahead of them.
+- Instructors get a separate dashboard with the full live queue and daily wait-time stats.
+- Each queue request includes a location that must be either `In person` or a UNC Zoom link.
 - Queue data is stored in PostgreSQL so it survives pod restarts.
 
 ## Stack

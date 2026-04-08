@@ -21,6 +21,7 @@ const { escapeHtml, formatDuration } = require("./utils");
 
 const app = express();
 const port = Number(process.env.PORT || 3000);
+const trustProxyAuth = String(process.env.TRUST_PROXY_AUTH || "").toLowerCase() === "true";
 
 app.set("trust proxy", true);
 app.disable("x-powered-by");
@@ -28,7 +29,31 @@ app.use(express.urlencoded({ extended: false }));
 app.use(express.static("public"));
 app.use(attachUser);
 
-const queueTitle = process.env.QUEUE_TITLE || "Student Queue";
+const queueTitle = process.env.QUEUE_TITLE || "STOR 113 Office hours queue";
+
+function normalizeMeetingLocation(input) {
+  const value = String(input || "").trim();
+  if (!value) {
+    return "";
+  }
+
+  if (/^in[\s-]?person$/i.test(value)) {
+    return "In person";
+  }
+
+  try {
+    const url = new URL(value);
+    const isHttps = url.protocol === "https:";
+    const isUncZoom = url.hostname === "unc.zoom.us" || url.hostname.endsWith(".unc.zoom.us");
+    if (isHttps && isUncZoom) {
+      return url.toString();
+    }
+  } catch {
+    return "";
+  }
+
+  return "";
+}
 
 function renderLayout({ title, body, notice = "", error = "" }) {
   return `<!DOCTYPE html>
@@ -64,6 +89,11 @@ function buildStatusPanel(user, activeEntry) {
       <div class="panel">
         <h2>Sign in</h2>
         <p>This application expects UNC SSO/Shibboleth to authenticate the user before they join the queue.</p>
+        ${
+          trustProxyAuth
+            ? `<p><strong>CloudApps diagnostic:</strong> if this page appears after UNC login, the Shibboleth proxy is likely not forwarding <code>HTTP_UID</code> to the app yet.</p>`
+            : ""
+        }
         <div class="button-row">
           <a class="primary-button" href="/auth/login">Sign in with UNC SSO</a>
         </div>
@@ -72,6 +102,7 @@ function buildStatusPanel(user, activeEntry) {
   }
 
   if (activeEntry) {
+    const peopleAhead = Math.max(0, Number(activeEntry.queue_position || 1) - 1);
     return `
       <div class="panel">
         <h2>Your place in line</h2>
@@ -84,8 +115,14 @@ function buildStatusPanel(user, activeEntry) {
             <span class="stat-label">Waiting</span>
             <span class="stat-value">${formatDuration(activeEntry.wait_seconds)}</span>
           </div>
+          <div class="stat-card">
+            <span class="stat-label">People ahead</span>
+            <span class="stat-value">${peopleAhead}</span>
+          </div>
         </div>
+        <p>You can only see your own queue position. Other students are not shown.</p>
         <p><strong>${escapeHtml(activeEntry.course_context)}</strong><br>${escapeHtml(activeEntry.help_topic)}</p>
+        <p><strong>Location:</strong> ${escapeHtml(activeEntry.meeting_location)}</p>
         <form method="post" action="/queue/leave">
           <button class="secondary-button" type="submit">Leave queue</button>
         </form>
@@ -96,6 +133,7 @@ function buildStatusPanel(user, activeEntry) {
   return `
     <div class="panel">
       <h2>Join the queue</h2>
+      <p>Students only see their own position and how many people are ahead of them.</p>
       <form class="stack-form" method="post" action="/queue/join">
         <label>
           Course or section
@@ -105,63 +143,23 @@ function buildStatusPanel(user, activeEntry) {
           What do you need help with?
           <textarea name="helpTopic" rows="4" maxlength="500" placeholder="Describe the issue or question." required></textarea>
         </label>
+        <label>
+          Location
+          <input name="meetingLocation" maxlength="500" placeholder="In person or https://unc.zoom.us/j/..." required>
+        </label>
         <button class="primary-button" type="submit">Join queue</button>
       </form>
     </div>
   `;
 }
 
-function buildQueueList(activeQueue) {
-  if (activeQueue.length === 0) {
-    return `<div class="panel"><h2>Live queue</h2><p>No one is waiting right now.</p></div>`;
-  }
-
-  const items = activeQueue
-    .map(
-      (entry, index) => `
-        <li class="queue-item">
-          <div>
-            <p class="queue-name">#${index + 1} ${escapeHtml(entry.student_name)}</p>
-            <p class="queue-meta">${escapeHtml(entry.course_context)} · ${escapeHtml(entry.help_topic)}</p>
-          </div>
-          <span class="pill">${formatDuration(entry.wait_seconds)}</span>
-        </li>
-      `
-    )
-    .join("");
-
-  return `
-    <div class="panel">
-      <h2>Live queue</h2>
-      <ul class="queue-list">${items}</ul>
-    </div>
-  `;
-}
-
-function buildInstructorPanel(user) {
-  if (user?.role !== "instructor") {
-    return "";
-  }
-
-  return `
-    <div class="panel">
-      <h2>Instructor controls</h2>
-      <p>Signed in as ${escapeHtml(user.displayName)}.</p>
-      <div class="button-row">
-        <a class="primary-button" href="/instructor">Open dashboard</a>
-      </div>
-    </div>
-  `;
-}
-
-function renderHomePage({ user, activeEntry, activeQueue, notice, error }) {
+function renderHomePage({ user, activeEntry, notice, error }) {
   const signedInCard = user
     ? `
       <div class="panel">
-        <h2>Signed in</h2>
+        <h2>Student view</h2>
         <p><strong>${escapeHtml(user.displayName)}</strong><br>${escapeHtml(user.email || user.userId)}</p>
         <div class="button-row">
-          ${user.role === "instructor" ? '<a class="ghost-button" href="/instructor">Instructor dashboard</a>' : ""}
           <a class="ghost-button" href="/auth/logout">Sign out</a>
         </div>
       </div>
@@ -170,6 +168,11 @@ function renderHomePage({ user, activeEntry, activeQueue, notice, error }) {
       <div class="panel">
         <h2>Authentication</h2>
         <p>UNC SSO should provide the user identity to this app after login.</p>
+        ${
+          trustProxyAuth
+            ? `<p><strong>CloudApps diagnostic:</strong> the public route should be protected by the UNC Shibboleth Proxy and the proxy should forward <code>HTTP_UID</code>.</p>`
+            : ""
+        }
         <div class="button-row">
           <a class="primary-button" href="/auth/login">Sign in with UNC SSO</a>
         </div>
@@ -205,15 +208,9 @@ function renderHomePage({ user, activeEntry, activeQueue, notice, error }) {
     `;
 
   const body = `
-    <div class="content-grid">
-      <div class="content-stack">
-        ${signedInCard}
-        ${buildStatusPanel(user, activeEntry)}
-        ${buildInstructorPanel(user)}
-      </div>
-      <div class="content-stack">
-        ${buildQueueList(activeQueue)}
-      </div>
+    <div class="content-single">
+      ${signedInCard}
+      ${buildStatusPanel(user, activeEntry)}
     </div>
   `;
 
@@ -228,7 +225,7 @@ function renderHomePage({ user, activeEntry, activeQueue, notice, error }) {
 function renderInstructorPage({ user, activeQueue, dashboard, notice, error }) {
   const queueRows =
     activeQueue.length === 0
-      ? '<tr><td colspan="6">No active students in the queue.</td></tr>'
+      ? '<tr><td colspan="7">No active students in the queue.</td></tr>'
       : activeQueue
           .map(
             (entry, index) => `
@@ -237,6 +234,7 @@ function renderInstructorPage({ user, activeQueue, dashboard, notice, error }) {
                 <td>${escapeHtml(entry.student_name)}</td>
                 <td>${escapeHtml(entry.course_context)}</td>
                 <td>${escapeHtml(entry.help_topic)}</td>
+                <td>${escapeHtml(entry.meeting_location)}</td>
                 <td>${formatDuration(entry.wait_seconds)}</td>
                 <td class="action-cell">
                   <form method="post" action="/instructor/entries/${entry.id}/complete">
@@ -253,7 +251,7 @@ function renderInstructorPage({ user, activeQueue, dashboard, notice, error }) {
 
   const completedRows =
     dashboard.completedToday.length === 0
-      ? '<tr><td colspan="5">No completed visits yet today.</td></tr>'
+      ? '<tr><td colspan="6">No completed visits yet today.</td></tr>'
       : dashboard.completedToday
           .map(
             (entry) => `
@@ -261,6 +259,7 @@ function renderInstructorPage({ user, activeQueue, dashboard, notice, error }) {
                 <td>${escapeHtml(entry.student_name)}</td>
                 <td>${escapeHtml(entry.course_context)}</td>
                 <td>${escapeHtml(entry.help_topic)}</td>
+                <td>${escapeHtml(entry.meeting_location)}</td>
                 <td>${formatDuration(entry.wait_seconds)}</td>
                 <td>${new Date(entry.completed_at).toLocaleTimeString()}</td>
               </tr>
@@ -273,7 +272,6 @@ function renderInstructorPage({ user, activeQueue, dashboard, notice, error }) {
       <h2>Instructor dashboard</h2>
       <p>Signed in as ${escapeHtml(user.displayName)}.</p>
       <div class="button-row">
-        <a class="ghost-button" href="/">Student view</a>
         <a class="ghost-button" href="/auth/logout">Sign out</a>
       </div>
     </div>
@@ -306,6 +304,7 @@ function renderInstructorPage({ user, activeQueue, dashboard, notice, error }) {
             <th>Student</th>
             <th>Course</th>
             <th>Help topic</th>
+            <th>Location</th>
             <th>Waiting</th>
             <th>Actions</th>
           </tr>
@@ -322,6 +321,7 @@ function renderInstructorPage({ user, activeQueue, dashboard, notice, error }) {
             <th>Student</th>
             <th>Course</th>
             <th>Help topic</th>
+            <th>Location</th>
             <th>Wait time</th>
             <th>Completed</th>
           </tr>
@@ -350,6 +350,12 @@ app.get("/healthz", (_req, res) => {
 });
 
 app.get("/auth/login", (req, res) => {
+  if (req.user) {
+    return redirectWithMessage(res, "/", {
+      notice: "You are already signed in."
+    });
+  }
+
   res.redirect(req.loginUrl);
 });
 
@@ -379,16 +385,16 @@ app.post("/dev/login", (req, res) => {
 
 app.get("/", async (req, res, next) => {
   try {
-    const [activeQueue, activeEntry] = await Promise.all([
-      getActiveQueue(),
-      req.user ? getStudentActiveEntry(req.user.userId) : Promise.resolve(null)
-    ]);
+    if (req.user?.role === "instructor") {
+      return res.redirect("/instructor");
+    }
+
+    const activeEntry = req.user ? await getStudentActiveEntry(req.user.userId) : null;
 
     res.send(
       renderHomePage({
         user: req.user,
         activeEntry,
-        activeQueue,
         notice: req.query.notice,
         error: req.query.error
       })
@@ -401,9 +407,12 @@ app.get("/", async (req, res, next) => {
 app.post("/queue/join", requireAuth, async (req, res, next) => {
   const courseContext = String(req.body.courseContext || "").trim();
   const helpTopic = String(req.body.helpTopic || "").trim();
+  const meetingLocation = normalizeMeetingLocation(req.body.meetingLocation);
 
-  if (!courseContext || !helpTopic) {
-    return redirectWithMessage(res, "/", { error: "Course and help topic are required." });
+  if (!courseContext || !helpTopic || !meetingLocation) {
+    return redirectWithMessage(res, "/", {
+      error: "Course, help topic, and a location of either In person or a valid UNC Zoom link are required."
+    });
   }
 
   try {
@@ -412,7 +421,8 @@ app.post("/queue/join", requireAuth, async (req, res, next) => {
       studentName: req.user.displayName,
       studentEmail: req.user.email,
       courseContext,
-      helpTopic
+      helpTopic,
+      meetingLocation
     });
 
     return redirectWithMessage(res, "/", { notice: "You joined the queue." });

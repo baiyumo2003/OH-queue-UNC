@@ -10,6 +10,7 @@ async function getActiveQueue() {
         student_email,
         course_context,
         help_topic,
+        meeting_location,
         joined_at,
         EXTRACT(EPOCH FROM (NOW() - joined_at))::INT AS wait_seconds
       FROM queue_entries
@@ -48,7 +49,7 @@ async function getStudentActiveEntry(studentId) {
   return result.rows[0] || null;
 }
 
-async function joinQueue({ studentId, studentName, studentEmail, courseContext, helpTopic }) {
+async function joinQueue({ studentId, studentName, studentEmail, courseContext, helpTopic, meetingLocation }) {
   const result = await query(
     `
       INSERT INTO queue_entries (
@@ -56,12 +57,13 @@ async function joinQueue({ studentId, studentName, studentEmail, courseContext, 
         student_name,
         student_email,
         course_context,
-        help_topic
+        help_topic,
+        meeting_location
       )
-      VALUES ($1, $2, $3, $4, $5)
+      VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING id;
     `,
-    [studentId, studentName, studentEmail, courseContext, helpTopic]
+    [studentId, studentName, studentEmail, courseContext, helpTopic, meetingLocation]
   );
 
   return result.rows[0];
@@ -139,6 +141,7 @@ async function getDashboardStats() {
         student_name,
         course_context,
         help_topic,
+        meeting_location,
         joined_at,
         completed_at,
         EXTRACT(EPOCH FROM (completed_at - joined_at))::INT AS wait_seconds

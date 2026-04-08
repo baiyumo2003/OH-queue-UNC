@@ -50,6 +50,12 @@ body {
   gap: 1rem;
 }
 
+.content-single {
+  display: grid;
+  gap: 1rem;
+  max-width: 720px;
+}
+
 .brand-row {
   justify-content: space-between;
   align-items: flex-start;

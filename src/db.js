@@ -28,6 +28,22 @@ async function initDb() {
   `);
 
   await pool.query(`
+    ALTER TABLE queue_entries
+    ADD COLUMN IF NOT EXISTS meeting_location TEXT;
+  `);
+
+  await pool.query(`
+    UPDATE queue_entries
+    SET meeting_location = 'In person'
+    WHERE meeting_location IS NULL;
+  `);
+
+  await pool.query(`
+    ALTER TABLE queue_entries
+    ALTER COLUMN meeting_location SET NOT NULL;
+  `);
+
+  await pool.query(`
     CREATE UNIQUE INDEX IF NOT EXISTS queue_entries_one_active_per_student
     ON queue_entries (student_id)
     WHERE completed_at IS NULL AND cancelled_at IS NULL;
