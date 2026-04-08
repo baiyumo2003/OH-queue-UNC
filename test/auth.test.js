@@ -16,7 +16,7 @@ test("resolveUser uses trusted SSO headers when enabled", () => {
 
   const req = {
     headers: {
-      "x-remote-user": "teacher1",
+      http_uid: "teacher1",
       mail: "teacher1@unc.edu",
       displayname: "Teacher One"
     }
@@ -26,4 +26,20 @@ test("resolveUser uses trusted SSO headers when enabled", () => {
   assert.equal(user.userId, "teacher1");
   assert.equal(user.role, "instructor");
   assert.equal(user.displayName, "Teacher One");
+});
+
+test("resolveUser falls back to legacy proxy headers if HTTP_UID is absent", () => {
+  process.env.TRUST_PROXY_AUTH = "true";
+  process.env.ALLOW_DEV_AUTH = "false";
+  process.env.INSTRUCTOR_IDS = "";
+
+  const req = {
+    headers: {
+      "x-remote-user": "student1"
+    }
+  };
+
+  const user = resolveUser(req);
+  assert.equal(user.userId, "student1");
+  assert.equal(user.role, "student");
 });

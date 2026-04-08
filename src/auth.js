@@ -26,6 +26,10 @@ function readHeader(req, key) {
 
 function getForwardedUser(req) {
   const candidates = [
+    // UNC CloudApps Shibboleth documentation calls out HTTP_UID explicitly.
+    "http_uid",
+    "http-uid",
+    "uid",
     "x-remote-user",
     "remote-user",
     "remote_user",

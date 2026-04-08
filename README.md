@@ -19,13 +19,17 @@ Features:
 
 This app does not implement the SAML flow itself. It expects CloudApps/Shibboleth to authenticate the user and forward identity headers to the Node app.
 
-Supported incoming headers:
+Primary UNC username header:
+
+- `HTTP_UID`
+
+Other supported fallbacks:
 
 - `REMOTE_USER` or `X-Remote-User`
 - `mail` or `X-Forwarded-Email`
 - `displayName`, `givenName`, `sn`, or `cn`
 
-If your SSO setup forwards `REMOTE_USER=onyen` or `mail=onyen@unc.edu`, this app can identify the user.
+Per the UNC KB article, the separate Shibboleth proxy pod exposes the signed-in username through the `HTTP_UID` HTTP header. This app now treats `HTTP_UID` as the preferred source for the ONYEN/user id and falls back to the older generic headers only if needed.
 
 ## Environment variables
 
@@ -74,8 +78,6 @@ These steps assume:
 - You already signed up for Carolina CloudApps: <https://cloudapps.unc.edu/>
 - You can log into the UNC OKD console.
 - You will follow UNC's SSO/Shibboleth article here for the exact UNC-specific SSO resource creation details: <https://tdx.unc.edu/TDClient/33/Portal/KB/ArticleDet?ID=150>
-
-I could not read the KB article anonymously while generating this app, so use the exact object names, annotations, or sidecar settings from that article during the SSO step below. The app is already prepared to consume the forwarded identity headers once that layer is enabled.
 
 ### 1. Log into OKD
 
@@ -150,23 +152,60 @@ oc set env deployment/student-queue \
   SSO_LOGOUT_URL='https://<route-host>/Shibboleth.sso/Logout?return=https%3A%2F%2F<route-host>%2F'
 ```
 
-### 6. Configure UNC SSO exactly as KB 150 describes
+### 6. Add the UNC Shibboleth Proxy
 
-Follow the UNC KB article for your CloudApps SSO resources. The exact steps in the article may create a Shibboleth sidecar, protected route, Apache/httpd config, or annotations depending on UNC's supported pattern.
+The KB article’s visible steps show this flow in CloudApps:
 
-What matters for this app:
+1. Switch to the `Administrator` perspective.
+2. Go to `Networking`, then `Services`.
+3. Find and note the service name for your application.
+4. Switch to the `Developer` perspective.
+5. Open `+Add`.
+6. Choose `All services` from the Developer Catalog.
+7. Search for `shibboleth`.
+8. Choose `UNC Shibboleth Proxy`.
+9. Click `Instantiate Template`.
+10. Complete the template form.
 
-1. The public route must require UNC authentication.
-2. The SSO layer must forward user identity headers to the Node container.
-3. At least one of these must reach the app: `REMOTE_USER`, `X-Remote-User`, `mail`, or `X-Forwarded-Email`.
-4. Optional name headers are supported: `displayName`, `givenName`, `sn`, `cn`.
+From the KB page, the visible form fields include:
 
-### 7. Verify the deployment
+- `Application Name`: name of the Shibboleth pod to create, default `shibboleth`
+- `Onyen`: required; used to submit a ticket to ITS Identity Management to provision the Shibboleth Service Provider
+
+Use the service name from step 3 when the template asks which application/service should be protected.
+
+### 7. Match the app to the UNC header behavior
+
+The KB page says that because the Shibboleth proxy is a separate pod, your application should read the username from the `HTTP_UID` HTTP header rather than relying on the CGI `REMOTE_USER` variable.
+
+That is already how this app is now configured:
+
+1. `TRUST_PROXY_AUTH` must be `true`.
+2. The protected route should point users through the Shibboleth proxy.
+3. The Node app will read `HTTP_UID` as the primary ONYEN/user id.
+4. `INSTRUCTOR_IDS` should use ONYEN values that match `HTTP_UID`.
+
+### 8. If the protected domain changes later
+
+The KB page also shows that changing the domain on an existing Shibboleth deployment requires updating the Shibboleth deployment config:
+
+1. In `Administrator`, go to `Workloads`, then `Deployment Configs`.
+2. Open the Shibboleth deployment.
+3. Open the `Environment` tab.
+4. Change `APPLICATION_DOMAIN` to the new domain only, without `http://` or `https://`.
+5. Add `FORCE_TICKET=true`.
+6. Save and wait for the new pod.
+7. Remove `FORCE_TICKET`.
+8. Save again.
+
+In this app, update `APP_BASE_URL` at the same time so the Node app and the Shibboleth proxy use the same public hostname.
+
+### 9. Verify the deployment
 
 Open the route in a browser and verify:
 
 1. Unauthenticated access redirects to UNC login.
-2. After login, the app shows your name or ONYEN.
+2. After login, the app receives `HTTP_UID` and shows your ONYEN or derived UNC identity.
 3. A student account can join the queue.
 4. An instructor account listed in `INSTRUCTOR_IDS` can open `/instructor`.
 5. The instructor dashboard shows the student and a live waiting time.
@@ -180,7 +219,7 @@ oc logs deployment/student-queue-db
 oc describe route student-queue
 ```
 
-### 8. Update the deployment after code changes
+### 10. Update the deployment after code changes
 
 If you change the app and want CloudApps to rebuild:
 
@@ -192,7 +231,7 @@ If your project uses webhook-driven builds instead, wire that into GitHub Action
 
 ## Instructor access model
 
-Instructor access is controlled by `INSTRUCTOR_IDS`.
+Instructor access is controlled by `INSTRUCTOR_IDS`, and those values should match the ONYEN values UNC sends in `HTTP_UID`.
 
 Examples:
 
@@ -205,3 +244,4 @@ Examples:
 - The app enforces one active queue entry per student.
 - The instructor dashboard shows active wait times and a completed-today table with recorded wait durations.
 - Data is stored in PostgreSQL, not in memory.
+- UNC CloudApps Shibboleth should provide the username in `HTTP_UID`; generic proxy headers are treated as fallback compatibility only.
