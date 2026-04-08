@@ -2,10 +2,12 @@ const express = require("express");
 const {
   attachUser,
   clearDevCookie,
+  clearRoleOverrideCookie,
   getExternalBaseUrl,
   requireAuth,
   requireInstructor,
-  serializeDevCookie
+  serializeDevCookie,
+  serializeRoleOverride
 } = require("./auth");
 const { initDb } = require("./db");
 const {
@@ -110,6 +112,29 @@ function renderLayout({ title, body, notice = "", error = "" }) {
   </html>`;
 }
 
+function buildRoleSwitchPanel(user) {
+  if (!user?.canSwitchRoles) {
+    return "";
+  }
+
+  return `
+    <div class="panel">
+      <h2>Role switch</h2>
+      <p>Signed in as <strong>${escapeHtml(user.userId)}</strong>. Current role: <strong>${escapeHtml(user.role)}</strong>.</p>
+      <div class="button-row">
+        <form method="post" action="/session/role">
+          <input type="hidden" name="role" value="student">
+          <button class="secondary-button" type="submit">Use student view</button>
+        </form>
+        <form method="post" action="/session/role">
+          <input type="hidden" name="role" value="instructor">
+          <button class="secondary-button" type="submit">Use instructor view</button>
+        </form>
+      </div>
+    </div>
+  `;
+}
+
 function buildStatusPanel(user, activeEntry) {
   if (!user) {
     return `
@@ -186,6 +211,11 @@ function renderHomePage({ user, activeEntry, notice, error }) {
       <div class="panel">
         <h2>Student view</h2>
         <p><strong>${escapeHtml(user.displayName)}</strong><br>${escapeHtml(user.email || user.userId)}</p>
+        ${
+          user.baseRole && user.baseRole !== user.role
+            ? `<p><strong>Role override active:</strong> base role is ${escapeHtml(user.baseRole)}.</p>`
+            : ""
+        }
         <div class="button-row">
           <a class="ghost-button" href="/auth/logout">Sign out</a>
         </div>
@@ -258,6 +288,7 @@ function renderHomePage({ user, activeEntry, notice, error }) {
   const body = `
     <div class="content-single">
       ${signedInCard}
+      ${buildRoleSwitchPanel(user)}
       ${buildStatusPanel(user, activeEntry)}
     </div>
   `;
@@ -319,10 +350,17 @@ function renderInstructorPage({ user, activeQueue, dashboard, notice, error }) {
     <div class="panel">
       <h2>Instructor dashboard</h2>
       <p>Signed in as ${escapeHtml(user.displayName)}.</p>
+      ${
+        user.baseRole && user.baseRole !== user.role
+          ? `<p><strong>Role override active:</strong> base role is ${escapeHtml(user.baseRole)}.</p>`
+          : ""
+      }
       <div class="button-row">
         <a class="ghost-button" href="/auth/logout">Sign out</a>
       </div>
     </div>
+
+    ${buildRoleSwitchPanel(user)}
 
     <div class="stat-grid">
       <div class="stat-card">
@@ -408,11 +446,23 @@ app.get("/auth/login", (req, res) => {
 });
 
 app.get("/auth/logout", (req, res) => {
-  res.setHeader("Set-Cookie", clearDevCookie());
+  res.setHeader("Set-Cookie", [clearDevCookie(), clearRoleOverrideCookie()]);
   if (req.user?.authSource === "dev") {
     return redirectWithMessage(res, "/", { notice: "Signed out." });
   }
   res.redirect(req.logoutUrl);
+});
+
+app.post("/session/role", requireAuth, (req, res) => {
+  if (!req.user?.canSwitchRoles) {
+    return res.status(403).send("Role switching is not allowed for this account.");
+  }
+
+  const role = req.body.role === "instructor" ? "instructor" : "student";
+  res.setHeader("Set-Cookie", serializeRoleOverride(role));
+  return redirectWithMessage(res, role === "instructor" ? "/instructor" : "/", {
+    notice: `Role switched to ${role}.`
+  });
 });
 
 app.post("/dev/login", (req, res) => {

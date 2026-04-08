@@ -1,6 +1,7 @@
 const { normalizeUserId } = require("./utils");
 
 const DEV_AUTH_COOKIE = "dev_auth";
+const ROLE_OVERRIDE_COOKIE = "role_override";
 
 function parseCookies(cookieHeader) {
   const cookies = {};
@@ -116,6 +117,26 @@ function getInstructorIds() {
   );
 }
 
+function getRoleSwitchUsers() {
+  return new Set(
+    String(process.env.ROLE_SWITCH_USERS || "yumo")
+      .split(",")
+      .map((value) => normalizeUserId(value))
+      .filter(Boolean)
+  );
+}
+
+function canSwitchRolesForIdentity(userId, email) {
+  const allowed = getRoleSwitchUsers();
+  return allowed.has(normalizeUserId(userId)) || allowed.has(normalizeUserId(email));
+}
+
+function getRequestedRoleOverride(req) {
+  const cookies = parseCookies(req.headers?.cookie);
+  const role = String(cookies[ROLE_OVERRIDE_COOKIE] || "").trim().toLowerCase();
+  return role === "student" || role === "instructor" ? role : "";
+}
+
 function getExternalBaseUrl(req) {
   const configured = getFirstConfiguredValue(process.env.APP_BASE_URL);
   if (configured) {
@@ -187,6 +208,17 @@ function resolveUser(req) {
     }
   }
 
+  if (user) {
+    const canSwitchRoles = canSwitchRolesForIdentity(user.userId, user.email);
+    const requestedRole = canSwitchRoles ? getRequestedRoleOverride(req) : "";
+    user.canSwitchRoles = canSwitchRoles;
+    user.baseRole = user.role;
+    user.roleOverride = requestedRole || "";
+    if (requestedRole) {
+      user.role = requestedRole;
+    }
+  }
+
   return user;
 }
 
@@ -225,9 +257,19 @@ function clearDevCookie() {
   return `${DEV_AUTH_COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`;
 }
 
+function serializeRoleOverride(role) {
+  return `${ROLE_OVERRIDE_COOKIE}=${encodeURIComponent(role)}; Path=/; HttpOnly; SameSite=Lax`;
+}
+
+function clearRoleOverrideCookie() {
+  return `${ROLE_OVERRIDE_COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`;
+}
+
 module.exports = {
   attachUser,
   clearDevCookie,
+  clearRoleOverrideCookie,
+  canSwitchRolesForIdentity,
   getExternalBaseUrl,
   getFirstConfiguredValue,
   getLoginUrl,
@@ -236,5 +278,6 @@ module.exports = {
   requireAuth,
   requireInstructor,
   resolveUser,
-  serializeDevCookie
+  serializeDevCookie,
+  serializeRoleOverride
 };

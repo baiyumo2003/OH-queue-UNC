@@ -54,6 +54,7 @@ test("resolveUser falls back to legacy proxy headers if HTTP_UID is absent", () 
   process.env.TRUST_PROXY_AUTH = "true";
   process.env.ALLOW_DEV_AUTH = "false";
   process.env.INSTRUCTOR_IDS = "";
+  process.env.ROLE_SWITCH_USERS = "";
 
   const req = {
     headers: {
@@ -64,4 +65,24 @@ test("resolveUser falls back to legacy proxy headers if HTTP_UID is absent", () 
   const user = resolveUser(req);
   assert.equal(user.userId, "student1");
   assert.equal(user.role, "student");
+});
+
+test("resolveUser applies role override for allowed switch user", () => {
+  process.env.TRUST_PROXY_AUTH = "true";
+  process.env.ALLOW_DEV_AUTH = "false";
+  process.env.INSTRUCTOR_IDS = "";
+  process.env.ROLE_SWITCH_USERS = "yumo";
+
+  const req = {
+    headers: {
+      http_uid: "yumo",
+      cookie: "role_override=instructor"
+    }
+  };
+
+  const user = resolveUser(req);
+  assert.equal(user.userId, "yumo");
+  assert.equal(user.baseRole, "student");
+  assert.equal(user.role, "instructor");
+  assert.equal(user.canSwitchRoles, true);
 });

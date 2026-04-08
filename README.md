@@ -50,6 +50,7 @@ Optional:
 
 - `ALLOW_DEV_AUTH=true` for local development only
 - `TEST_LOGIN_ENABLED=true` to expose one-click test student/instructor accounts
+- `ROLE_SWITCH_USERS=yumo` to allow specific UNC-authenticated users to switch between student and instructor views
 - `SSO_LOGIN_URL` override if your SSO article has you use a custom login URL
 - `SSO_LOGOUT_URL` override if your SSO article has you use a custom logout URL
 
