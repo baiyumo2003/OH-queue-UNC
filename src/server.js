@@ -33,6 +33,8 @@ app.use(attachUser);
 
 const queueTitle = process.env.QUEUE_TITLE || "STOR 113 Office hours queue";
 const testLoginEnabled = String(process.env.TEST_LOGIN_ENABLED || "").toLowerCase() === "true";
+const studentViewKey = String(process.env.STUDENT_VIEW_KEY || "").trim();
+const instructorViewKey = String(process.env.INSTRUCTOR_VIEW_KEY || "").trim();
 
 function getTestAccount(kind) {
   if (kind === "instructor") {
@@ -58,6 +60,15 @@ function activateTestLogin(res, kind) {
   return redirectWithMessage(res, kind === "instructor" ? "/instructor" : "/", {
     notice: `Test ${kind} login active.`
   });
+}
+
+function hasRoleAccessKeys() {
+  return Boolean(studentViewKey || instructorViewKey);
+}
+
+function matchesRoleAccessKey(role, providedKey) {
+  const expectedKey = role === "instructor" ? instructorViewKey : studentViewKey;
+  return Boolean(expectedKey) && String(providedKey || "").trim() === expectedKey;
 }
 
 function normalizeMeetingLocation(input) {
@@ -113,7 +124,7 @@ function renderLayout({ title, body, notice = "", error = "" }) {
 }
 
 function buildRoleSwitchPanel(user) {
-  if (!user?.canSwitchRoles) {
+  if (!user || (!user.canSwitchRoles && !hasRoleAccessKeys())) {
     return "";
   }
 
@@ -121,16 +132,42 @@ function buildRoleSwitchPanel(user) {
     <div class="panel">
       <h2>Role switch</h2>
       <p>Signed in as <strong>${escapeHtml(user.userId)}</strong>. Current role: <strong>${escapeHtml(user.role)}</strong>.</p>
-      <div class="button-row">
-        <form method="post" action="/session/role">
-          <input type="hidden" name="role" value="student">
-          <button class="secondary-button" type="submit">Use student view</button>
-        </form>
-        <form method="post" action="/session/role">
-          <input type="hidden" name="role" value="instructor">
-          <button class="secondary-button" type="submit">Use instructor view</button>
-        </form>
-      </div>
+      ${
+        user.canSwitchRoles
+          ? `
+            <div class="button-row">
+              <form method="post" action="/session/role">
+                <input type="hidden" name="role" value="student">
+                <button class="secondary-button" type="submit">Use student view</button>
+              </form>
+              <form method="post" action="/session/role">
+                <input type="hidden" name="role" value="instructor">
+                <button class="secondary-button" type="submit">Use instructor view</button>
+              </form>
+            </div>
+          `
+          : ""
+      }
+      ${
+        hasRoleAccessKeys()
+          ? `
+            <form class="stack-form" method="post" action="/session/role">
+              <label>
+                Role
+                <select name="role">
+                  ${studentViewKey ? '<option value="student">Student view</option>' : ""}
+                  ${instructorViewKey ? '<option value="instructor">Instructor view</option>' : ""}
+                </select>
+              </label>
+              <label>
+                Access key
+                <input name="accessKey" type="password" placeholder="Enter role key" required>
+              </label>
+              <button class="secondary-button" type="submit">Switch with key</button>
+            </form>
+          `
+          : ""
+      }
     </div>
   `;
 }
@@ -216,9 +253,6 @@ function renderHomePage({ user, activeEntry, notice, error }) {
             ? `<p><strong>Role override active:</strong> base role is ${escapeHtml(user.baseRole)}.</p>`
             : ""
         }
-        <div class="button-row">
-          <a class="ghost-button" href="/auth/logout">Sign out</a>
-        </div>
       </div>
     `
     : `
@@ -355,9 +389,6 @@ function renderInstructorPage({ user, activeQueue, dashboard, notice, error }) {
           ? `<p><strong>Role override active:</strong> base role is ${escapeHtml(user.baseRole)}.</p>`
           : ""
       }
-      <div class="button-row">
-        <a class="ghost-button" href="/auth/logout">Sign out</a>
-      </div>
     </div>
 
     ${buildRoleSwitchPanel(user)}
@@ -454,11 +485,16 @@ app.get("/auth/logout", (req, res) => {
 });
 
 app.post("/session/role", requireAuth, (req, res) => {
-  if (!req.user?.canSwitchRoles) {
-    return res.status(403).send("Role switching is not allowed for this account.");
+  const role = req.body.role === "instructor" ? "instructor" : "student";
+  const allowedByIdentity = Boolean(req.user?.canSwitchRoles);
+  const allowedByKey = matchesRoleAccessKey(role, req.body.accessKey);
+
+  if (!allowedByIdentity && !allowedByKey) {
+    return redirectWithMessage(res, req.user?.role === "instructor" ? "/instructor" : "/", {
+      error: "Role switching is not allowed for this account or the access key was invalid."
+    });
   }
 
-  const role = req.body.role === "instructor" ? "instructor" : "student";
   res.setHeader("Set-Cookie", serializeRoleOverride(role));
   return redirectWithMessage(res, role === "instructor" ? "/instructor" : "/", {
     notice: `Role switched to ${role}.`
