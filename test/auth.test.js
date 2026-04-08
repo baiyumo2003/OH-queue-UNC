@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-const { getFirstConfiguredValue, parseCookies, resolveUser } = require("../src/auth");
+const { getExternalBaseUrl, getFirstConfiguredValue, parseCookies, resolveUser } = require("../src/auth");
 
 test("parseCookies parses multiple cookie pairs", () => {
   const result = parseCookies("a=1; b=two");
@@ -13,6 +13,21 @@ test("getFirstConfiguredValue ignores duplicated comma-separated values", () => 
   assert.equal(
     getFirstConfiguredValue("https://a.example, https://b.example"),
     "https://a.example"
+  );
+});
+
+test("getExternalBaseUrl uses first forwarded host and protocol value", () => {
+  const req = {
+    headers: {
+      "x-forwarded-proto": "https, http",
+      "x-forwarded-host": "student-queue-yumo.apps.cloudapps.unc.edu, internal-router"
+    },
+    protocol: "http"
+  };
+
+  assert.equal(
+    getExternalBaseUrl(req),
+    "https://student-queue-yumo.apps.cloudapps.unc.edu"
   );
 });
 

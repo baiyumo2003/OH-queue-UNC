@@ -164,7 +164,7 @@ function buildStatusPanel(user, activeEntry) {
       <form class="stack-form" method="post" action="/queue/join">
         <label>
           Course or section
-          <input name="courseContext" maxlength="120" placeholder="COMP 423 - Section 001" required>
+          <input name="courseContext" maxlength="120" value="STOR113" placeholder="STOR113" required>
         </label>
         <label>
           What do you need help with?

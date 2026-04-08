@@ -122,8 +122,11 @@ function getExternalBaseUrl(req) {
     return configured.replace(/\/$/, "");
   }
 
-  const protocol = req.headers["x-forwarded-proto"] || req.protocol || "http";
-  const host = req.headers["x-forwarded-host"] || req.headers.host || `localhost:${process.env.PORT || 3000}`;
+  const protocol = getFirstConfiguredValue(req.headers["x-forwarded-proto"]) || req.protocol || "http";
+  const host =
+    getFirstConfiguredValue(req.headers["x-forwarded-host"]) ||
+    getFirstConfiguredValue(req.headers.host) ||
+    `localhost:${process.env.PORT || 3000}`;
   return `${protocol}://${host}`;
 }
 
