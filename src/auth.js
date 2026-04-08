@@ -14,6 +14,12 @@ function parseCookies(cookieHeader) {
   return cookies;
 }
 
+function getFirstConfiguredValue(rawValue) {
+  return String(rawValue || "")
+    .split(",")[0]
+    .trim();
+}
+
 function readHeader(req, key) {
   const directValue = req.headers?.[key];
   if (directValue) {
@@ -111,7 +117,7 @@ function getInstructorIds() {
 }
 
 function getExternalBaseUrl(req) {
-  const configured = String(process.env.APP_BASE_URL || "").trim();
+  const configured = getFirstConfiguredValue(process.env.APP_BASE_URL);
   if (configured) {
     return configured.replace(/\/$/, "");
   }
@@ -122,7 +128,7 @@ function getExternalBaseUrl(req) {
 }
 
 function getLoginUrl(req) {
-  const configured = String(process.env.SSO_LOGIN_URL || "").trim();
+  const configured = getFirstConfiguredValue(process.env.SSO_LOGIN_URL);
   if (configured) {
     return configured;
   }
@@ -132,7 +138,7 @@ function getLoginUrl(req) {
 }
 
 function getLogoutUrl(req) {
-  const configured = String(process.env.SSO_LOGOUT_URL || "").trim();
+  const configured = getFirstConfiguredValue(process.env.SSO_LOGOUT_URL);
   if (configured) {
     return configured;
   }
@@ -220,6 +226,7 @@ module.exports = {
   attachUser,
   clearDevCookie,
   getExternalBaseUrl,
+  getFirstConfiguredValue,
   getLoginUrl,
   getLogoutUrl,
   parseCookies,

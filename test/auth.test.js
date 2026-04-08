@@ -1,12 +1,19 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-const { parseCookies, resolveUser } = require("../src/auth");
+const { getFirstConfiguredValue, parseCookies, resolveUser } = require("../src/auth");
 
 test("parseCookies parses multiple cookie pairs", () => {
   const result = parseCookies("a=1; b=two");
   assert.equal(result.a, "1");
   assert.equal(result.b, "two");
+});
+
+test("getFirstConfiguredValue ignores duplicated comma-separated values", () => {
+  assert.equal(
+    getFirstConfiguredValue("https://a.example, https://b.example"),
+    "https://a.example"
+  );
 });
 
 test("resolveUser uses trusted SSO headers when enabled", () => {

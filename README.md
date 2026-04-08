@@ -49,8 +49,14 @@ Recommended:
 Optional:
 
 - `ALLOW_DEV_AUTH=true` for local development only
+- `TEST_LOGIN_ENABLED=true` to expose one-click test student/instructor accounts
 - `SSO_LOGIN_URL` override if your SSO article has you use a custom login URL
 - `SSO_LOGOUT_URL` override if your SSO article has you use a custom logout URL
+
+When `TEST_LOGIN_ENABLED=true`, these direct URLs are available:
+
+- `/test-login/student`
+- `/test-login/instructor`
 
 ## Local development
 

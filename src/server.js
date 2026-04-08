@@ -30,6 +30,33 @@ app.use(express.static("public"));
 app.use(attachUser);
 
 const queueTitle = process.env.QUEUE_TITLE || "STOR 113 Office hours queue";
+const testLoginEnabled = String(process.env.TEST_LOGIN_ENABLED || "").toLowerCase() === "true";
+
+function getTestAccount(kind) {
+  if (kind === "instructor") {
+    return {
+      displayName: process.env.TEST_INSTRUCTOR_NAME || "Test Instructor",
+      email: process.env.TEST_INSTRUCTOR_EMAIL || "test.instructor@unc.edu",
+      role: "instructor",
+      userId: process.env.TEST_INSTRUCTOR_ONYEN || "testinstructor"
+    };
+  }
+
+  return {
+    displayName: process.env.TEST_STUDENT_NAME || "Test Student",
+    email: process.env.TEST_STUDENT_EMAIL || "test.student@unc.edu",
+    role: "student",
+    userId: process.env.TEST_STUDENT_ONYEN || "teststudent"
+  };
+}
+
+function activateTestLogin(res, kind) {
+  const payload = getTestAccount(kind);
+  res.setHeader("Set-Cookie", serializeDevCookie(payload));
+  return redirectWithMessage(res, kind === "instructor" ? "/instructor" : "/", {
+    notice: `Test ${kind} login active.`
+  });
+}
 
 function normalizeMeetingLocation(input) {
   const value = String(input || "").trim();
@@ -201,6 +228,27 @@ function renderHomePage({ user, activeEntry, notice, error }) {
                 </label>
                 <button class="secondary-button" type="submit">Use dev login</button>
               </form>
+            `
+            : ""
+        }
+        ${
+          testLoginEnabled
+            ? `
+              <div class="panel inset-panel">
+                <h3>Test accounts</h3>
+                <p>These accounts bypass UNC SSO and are intended only for controlled testing.</p>
+                <p><code>/test-login/student</code> and <code>/test-login/instructor</code> are also available when enabled.</p>
+                <div class="button-row">
+                  <form method="post" action="/test-login">
+                    <input type="hidden" name="kind" value="student">
+                    <button class="secondary-button" type="submit">Test student</button>
+                  </form>
+                  <form method="post" action="/test-login">
+                    <input type="hidden" name="kind" value="instructor">
+                    <button class="secondary-button" type="submit">Test instructor</button>
+                  </form>
+                </div>
+              </div>
             `
             : ""
         }
@@ -381,6 +429,31 @@ app.post("/dev/login", (req, res) => {
 
   res.setHeader("Set-Cookie", serializeDevCookie(payload));
   return redirectWithMessage(res, "/", { notice: "Dev login active." });
+});
+
+app.post("/test-login", (req, res) => {
+  if (!testLoginEnabled) {
+    return res.status(404).send("Test login is disabled.");
+  }
+
+  const kind = req.body.kind === "instructor" ? "instructor" : "student";
+  return activateTestLogin(res, kind);
+});
+
+app.get("/test-login/student", (_req, res) => {
+  if (!testLoginEnabled) {
+    return res.status(404).send("Test login is disabled.");
+  }
+
+  return activateTestLogin(res, "student");
+});
+
+app.get("/test-login/instructor", (_req, res) => {
+  if (!testLoginEnabled) {
+    return res.status(404).send("Test login is disabled.");
+  }
+
+  return activateTestLogin(res, "instructor");
 });
 
 app.get("/", async (req, res, next) => {
