@@ -30,7 +30,7 @@ Other supported fallbacks:
 
 - `REMOTE_USER` or `X-Remote-User`
 - `mail` or `X-Forwarded-Email`
-- `displayName`, `givenName`, `sn`, or `cn`
+- `displayName`, `givenName`, `sn`, or `cn`, including Shibboleth-style `HTTP_`-prefixed versions such as `HTTP_DISPLAYNAME`, `HTTP_GIVENNAME`, `HTTP_SN`, and `HTTP_MAIL`
 
 Per the UNC KB article, the separate Shibboleth proxy pod exposes the signed-in username through the `HTTP_UID` HTTP header. This app now treats `HTTP_UID` as the preferred source for the ONYEN/user id and falls back to the older generic headers only if needed.
 
@@ -236,7 +236,7 @@ In this app, update `APP_BASE_URL` at the same time so the Node app and the Shib
 Open the route in a browser and verify:
 
 1. Unauthenticated access redirects to UNC login.
-2. After login, the app receives `HTTP_UID` and shows your ONYEN or derived UNC identity.
+2. After login, the app receives `HTTP_UID` and, when available, formal name headers such as `HTTP_DISPLAYNAME` or `HTTP_GIVENNAME`/`HTTP_SN`.
 3. A student account can join the queue.
 4. An instructor account listed in `INSTRUCTOR_IDS` can open `/instructor`.
 5. The instructor dashboard shows the student and a live waiting time.

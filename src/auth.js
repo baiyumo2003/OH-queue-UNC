@@ -60,14 +60,26 @@ function getForwardedUser(req) {
 
 function getForwardedName(req) {
   const candidates = [
+    "http_displayname",
+    "http-displayname",
+    "http_display_name",
+    "http-display-name",
     "displayname",
     "display_name",
     "display-name",
+    "http_preferredname",
+    "http-preferredname",
+    "http_preferred_name",
+    "http-preferred-name",
     "preferredname",
     "preferred_name",
     "preferred-name",
+    "http_name",
+    "http-name",
     "name",
     "x-display-name",
+    "http_cn",
+    "http-cn",
     "cn"
   ];
 
@@ -78,14 +90,30 @@ function getForwardedName(req) {
     }
   }
 
-  const given = readHeader(req, "givenname");
-  const family = readHeader(req, "sn");
+  const given =
+    readHeader(req, "http_givenname") ||
+    readHeader(req, "http-givenname") ||
+    readHeader(req, "http_given_name") ||
+    readHeader(req, "http-given-name") ||
+    readHeader(req, "givenname") ||
+    readHeader(req, "given_name") ||
+    readHeader(req, "given-name");
+  const family = readHeader(req, "http_sn") || readHeader(req, "http-sn") || readHeader(req, "sn");
   const fallback = `${given || ""} ${family || ""}`.trim();
   return fallback;
 }
 
 function getForwardedEmail(req, fallbackUser) {
-  const candidates = ["mail", "x-forwarded-email", "x-remote-email", "eppn"];
+  const candidates = [
+    "http_mail",
+    "http-mail",
+    "mail",
+    "x-forwarded-email",
+    "x-remote-email",
+    "http_eppn",
+    "http-eppn",
+    "eppn"
+  ];
   for (const key of candidates) {
     const value = readHeader(req, key);
     if (value) {

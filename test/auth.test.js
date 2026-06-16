@@ -123,3 +123,42 @@ test("resolveUser prefers preferred name headers over onyen", () => {
   assert.equal(user.userId, "abc123");
   assert.equal(user.displayName, "Alex Zhang");
 });
+
+test("resolveUser supports Shibboleth HTTP-prefixed display name and email headers", () => {
+  process.env.TRUST_PROXY_AUTH = "true";
+  process.env.ALLOW_DEV_AUTH = "false";
+  process.env.INSTRUCTOR_IDS = "";
+  process.env.ROLE_SWITCH_USERS = "";
+
+  const req = {
+    headers: {
+      http_uid: "student1",
+      http_displayname: "Formal Student",
+      http_mail: "student1@unc.edu"
+    }
+  };
+
+  const user = resolveUser(req);
+  assert.equal(user.userId, "student1");
+  assert.equal(user.displayName, "Formal Student");
+  assert.equal(user.email, "student1@unc.edu");
+});
+
+test("resolveUser builds display name from HTTP-prefixed given and family name headers", () => {
+  process.env.TRUST_PROXY_AUTH = "true";
+  process.env.ALLOW_DEV_AUTH = "false";
+  process.env.INSTRUCTOR_IDS = "";
+  process.env.ROLE_SWITCH_USERS = "";
+
+  const req = {
+    headers: {
+      http_uid: "student2",
+      http_givenname: "Formal",
+      http_sn: "Name"
+    }
+  };
+
+  const user = resolveUser(req);
+  assert.equal(user.userId, "student2");
+  assert.equal(user.displayName, "Formal Name");
+});
