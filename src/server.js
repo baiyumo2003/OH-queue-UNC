@@ -20,7 +20,7 @@ const {
   joinQueue,
   leaveQueue
 } = require("./queueService");
-const { getStudentCourseName, setStudentCourseName } = require("./settingsService");
+const { buildQueueTitle, getStudentCourseName, getStudentCourseNames, setStudentCourseName } = require("./settingsService");
 const { escapeHtml, formatDuration } = require("./utils");
 
 const app = express();
@@ -33,7 +33,6 @@ app.use(express.urlencoded({ extended: false }));
 app.use(express.static("public"));
 app.use(attachUser);
 
-const queueTitle = process.env.QUEUE_TITLE || "STOR 113 Office hours queue";
 const testLoginEnabled = String(process.env.TEST_LOGIN_ENABLED || "").toLowerCase() === "true";
 const studentViewKey = String(process.env.STUDENT_VIEW_KEY || "").trim();
 const instructorViewKey = String(process.env.INSTRUCTOR_VIEW_KEY || "").trim();
@@ -126,7 +125,7 @@ function renderLayout({ title, body, notice = "", error = "" }) {
           <div class="brand-row">
             <div>
               <p class="eyebrow">UNC Office Hours</p>
-              <h1>${escapeHtml(queueTitle)}</h1>
+              <h1>${escapeHtml(title)}</h1>
             </div>
             <a class="ghost-button" href="/">Home</a>
           </div>
@@ -188,7 +187,7 @@ function buildRoleSwitchPanel(user) {
   `;
 }
 
-function buildStatusPanel(user, activeEntry, studentCourseName) {
+function buildStatusPanel(user, activeEntry, studentCourseNames) {
   if (!user) {
     return `
       <div class="panel">
@@ -242,7 +241,11 @@ function buildStatusPanel(user, activeEntry, studentCourseName) {
       <form class="stack-form" method="post" action="/queue/join">
         <label>
           Course or section
-          <input value="${escapeHtml(studentCourseName)}" disabled>
+          <select name="courseContext" required>
+            ${studentCourseNames
+              .map((courseName) => `<option value="${escapeHtml(courseName)}">${escapeHtml(courseName)}</option>`)
+              .join("")}
+          </select>
         </label>
         <label>
           What do you need help with?
@@ -258,7 +261,8 @@ function buildStatusPanel(user, activeEntry, studentCourseName) {
   `;
 }
 
-function renderHomePage({ user, activeEntry, studentCourseName, notice, error }) {
+function renderHomePage({ user, activeEntry, studentCourseNames, notice, error }) {
+  const title = buildQueueTitle(studentCourseNames);
   const signedInCard = user
     ? `
       <div class="panel">
@@ -339,19 +343,20 @@ function renderHomePage({ user, activeEntry, studentCourseName, notice, error })
     <div class="content-single">
       ${signedInCard}
       ${buildRoleSwitchPanel(user)}
-      ${buildStatusPanel(user, activeEntry, studentCourseName)}
+      ${buildStatusPanel(user, activeEntry, studentCourseNames)}
     </div>
   `;
 
   return renderLayout({
-    title: queueTitle,
+    title,
     body,
     notice,
     error
   });
 }
 
-function renderInstructorPage({ user, activeQueue, dashboard, studentCourseName, notice, error }) {
+function renderInstructorPage({ user, activeQueue, dashboard, studentCourseName, studentCourseNames, notice, error }) {
+  const title = buildQueueTitle(studentCourseNames);
   const queueRows =
     activeQueue.length === 0
       ? '<tr><td colspan="7">No active students in the queue.</td></tr>'
@@ -410,14 +415,14 @@ function renderInstructorPage({ user, activeQueue, dashboard, studentCourseName,
     ${buildRoleSwitchPanel(user)}
 
     <div class="panel">
-      <h2>Student course name</h2>
-      <p>This is the course name students see when joining the queue.</p>
+      <h2>Student course choices</h2>
+      <p>Students choose from this list when joining the queue. Separate courses with commas or spaces.</p>
       <form class="stack-form" method="post" action="/instructor/settings/course-name">
         <label>
-          Course or section
-          <input name="courseName" maxlength="120" value="${escapeHtml(studentCourseName)}" required>
+          Courses
+          <input name="courseName" maxlength="500" value="${escapeHtml(studentCourseName)}" required>
         </label>
-        <button class="secondary-button" type="submit">Update course name</button>
+        <button class="secondary-button" type="submit">Update course choices</button>
       </form>
     </div>
 
@@ -477,7 +482,7 @@ function renderInstructorPage({ user, activeQueue, dashboard, studentCourseName,
   `;
 
   return renderLayout({
-    title: `${queueTitle} - Instructor`,
+    title,
     body,
     notice,
     error
@@ -576,16 +581,16 @@ app.get("/", async (req, res, next) => {
       return res.redirect("/instructor");
     }
 
-    const [activeEntry, studentCourseName] = await Promise.all([
+    const [activeEntry, studentCourseNames] = await Promise.all([
       req.user ? getStudentActiveEntry(req.user.userId) : null,
-      getStudentCourseName()
+      getStudentCourseNames()
     ]);
 
     res.send(
       renderHomePage({
         user: req.user,
         activeEntry,
-        studentCourseName,
+        studentCourseNames,
         notice: req.query.notice,
         error: req.query.error
       })
@@ -596,17 +601,24 @@ app.get("/", async (req, res, next) => {
 });
 
 app.post("/queue/join", requireAuth, async (req, res, next) => {
+  const courseContext = String(req.body.courseContext || "").trim();
   const helpTopic = String(req.body.helpTopic || "").trim();
   const meetingLocation = normalizeMeetingLocation(req.body.meetingLocation);
 
-  if (!helpTopic || !meetingLocation) {
+  if (!courseContext || !helpTopic || !meetingLocation) {
     return redirectWithMessage(res, "/", {
       error: "Course, help topic, and a location of either In person or a valid UNC Zoom link are required."
     });
   }
 
   try {
-    const courseContext = await getStudentCourseName();
+    const studentCourseNames = await getStudentCourseNames();
+    if (!studentCourseNames.includes(courseContext)) {
+      return redirectWithMessage(res, "/", {
+        error: "Please choose one of the available courses."
+      });
+    }
+
     await joinQueue({
       studentId: req.user.userId,
       studentName: req.user.displayName,
@@ -652,10 +664,11 @@ app.post("/queue/leave", requireAuth, async (req, res, next) => {
 
 app.get("/instructor", requireInstructor, async (req, res, next) => {
   try {
-    const [activeQueue, dashboard, studentCourseName] = await Promise.all([
+    const [activeQueue, dashboard, studentCourseName, studentCourseNames] = await Promise.all([
       getActiveQueue(),
       getDashboardStats(),
-      getStudentCourseName()
+      getStudentCourseName(),
+      getStudentCourseNames()
     ]);
     res.send(
       renderInstructorPage({
@@ -663,6 +676,7 @@ app.get("/instructor", requireInstructor, async (req, res, next) => {
         activeQueue,
         dashboard,
         studentCourseName,
+        studentCourseNames,
         notice: req.query.notice,
         error: req.query.error
       })
@@ -675,9 +689,9 @@ app.get("/instructor", requireInstructor, async (req, res, next) => {
 app.post("/instructor/settings/course-name", requireInstructor, async (req, res, next) => {
   try {
     await setStudentCourseName(req.body.courseName);
-    return redirectWithMessage(res, "/instructor", { notice: "Student course name updated." });
+    return redirectWithMessage(res, "/instructor", { notice: "Student course choices updated." });
   } catch (error) {
-    if (error.message === "Course name is required.") {
+    if (error.message === "At least one course name is required.") {
       return redirectWithMessage(res, "/instructor", { error: error.message });
     }
     next(error);

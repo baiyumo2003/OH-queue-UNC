@@ -8,7 +8,7 @@ Features:
 - Students can only see their own position, wait time, and how many people are ahead of them.
 - Instructors get a separate dashboard with the full live queue and daily wait-time stats.
 - Each queue request includes a location that must be either `In person` or a UNC Zoom link.
-- Instructors can update the course name shown to students from the instructor dashboard.
+- Instructors can update the course choices shown to students from the instructor dashboard.
 - Instructors can receive an email when a student joins the queue.
 - Queue data is stored in PostgreSQL so it survives pod restarts.
 
@@ -43,11 +43,10 @@ Required:
 Recommended:
 
 - `PORT` default: `3000`
-- `QUEUE_TITLE` default: `Student Queue`
 - `INSTRUCTOR_IDS` comma-separated ONYENs or email addresses allowed into `/instructor`
 - `TRUST_PROXY_AUTH=true` in CloudApps when SSO headers are being forwarded
 - `APP_BASE_URL` public route base URL, such as `https://student-queue-youronyen.apps.unc.edu`
-- `STUDENT_COURSE_NAME` initial course name shown to students before instructors change it in the dashboard
+- `STUDENT_COURSE_NAME` initial course choices shown to students before instructors change them in the dashboard, separated by commas or spaces
 
 Optional:
 
@@ -157,8 +156,7 @@ oc set env deployment/student-queue \
   DATABASE_URL='postgresql://queueuser:replace-with-strong-password@student-queue-db:5432/student_queue' \
   TRUST_PROXY_AUTH=true \
   INSTRUCTOR_IDS='youronyen,yourta' \
-  QUEUE_TITLE='COMP 423 Office Hours Queue' \
-  STUDENT_COURSE_NAME='COMP 423' \
+  STUDENT_COURSE_NAME='COMP423, COMP523' \
   APP_BASE_URL='https://<route-host>' \
   ALLOW_DEV_AUTH=false
 ```
