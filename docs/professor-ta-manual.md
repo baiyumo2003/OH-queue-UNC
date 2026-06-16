@@ -105,10 +105,13 @@ When roster restriction is off, any signed-in UNC student can join the course qu
 
 ### Import Students from Canvas CSV
 
-1. Download a Canvas gradebook CSV for the course.
-2. Go to **Course rosters**.
-3. Choose the CSV file under **Import Canvas CSV**.
-4. Click **Import SIS Login IDs**.
+1. In Canvas, open the course.
+2. Go to **Grades**.
+3. Click **Export**.
+4. Choose **Export Entire Gradebook** to download the CSV.
+5. Go to **Course rosters** in the office hours queue.
+6. Choose the CSV file under **Import Canvas CSV**.
+7. Click **Import SIS Login IDs**.
 
 The app reads the `SIS Login ID` column as the student's ONYEN.
 

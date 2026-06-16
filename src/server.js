@@ -925,6 +925,7 @@ function buildRosterManagementPanel(managedCourseNames, rosterSettingsByCourseMa
                 Import Canvas CSV
                 <input name="rosterCsv" type="file" accept=".csv,text/csv" required>
               </label>
+              <p class="form-help">In Canvas, open the course, go to <strong>Grades</strong>, click <strong>Export</strong>, then choose <strong>Export Entire Gradebook</strong>.</p>
               <button class="secondary-button" type="submit">${icon("layers")} Import SIS Login IDs</button>
             </form>
             <form class="stack-form ta-form" method="post" action="/instructor/rosters/students">
@@ -964,7 +965,7 @@ function buildRosterManagementPanel(managedCourseNames, rosterSettingsByCourseMa
   return `
     <div class="panel">
       <h2>Course rosters</h2>
-      <p>Professors and administrators can import Canvas gradebook CSV files or manually add allowed students. The CSV column <strong>SIS Login ID</strong> is used as the ONYEN.</p>
+      <p>Professors and administrators can import Canvas gradebook CSV files or manually add allowed students. In Canvas, go to <strong>Grades</strong>, click <strong>Export</strong>, then choose <strong>Export Entire Gradebook</strong>. The CSV column <strong>SIS Login ID</strong> is used as the ONYEN.</p>
       <div class="course-admin-grid">${courseCards}</div>
     </div>
   `;

@@ -405,7 +405,7 @@ TAs can be assigned to multiple courses.
 Professors and administrators can manage allowed students under **Course rosters**:
 
 - Toggle whether only students on the roster may join a course queue.
-- Import a Canvas gradebook CSV. The app reads the `SIS Login ID` column as the student's ONYEN.
+- Import a Canvas gradebook CSV. In Canvas, open the course, go to **Grades**, click **Export**, then choose **Export Entire Gradebook**. The app reads the `SIS Login ID` column as the student's ONYEN.
 - Manually add allowed students by ONYEN.
 - Remove allowed students.
 
