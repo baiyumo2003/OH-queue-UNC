@@ -430,10 +430,7 @@ function buildStaffViewSwitcher(staffView) {
         <span class="chip">${icon("user")} Administrator</span>
       </div>
       <div class="view-toggle staff-view-toggle" aria-label="Administrator view">
-        <form method="post" action="/session/role">
-          <input type="hidden" name="role" value="student">
-          <button type="submit">Student view</button>
-        </form>
+        <a href="/">Student view</a>
         <a class="${staffView === "administrator" ? "active" : ""}" href="/instructor?staffView=administrator">Administrator view</a>
         <a class="${staffView === "professor" ? "active" : ""}" href="/instructor?staffView=professor">Professor view</a>
       </div>
