@@ -217,8 +217,7 @@ function renderBrandHeader({ title, courseNames = [] }) {
     <header class="app-header">
       <div class="brand-lockup">
         <div class="brand-mark" aria-hidden="true">
-          <span>UNC</span>
-          <strong>STOR</strong>
+          <img src="/unc-stor-logo.png" alt="">
         </div>
         <div class="brand-copy">
           <p class="eyebrow">UNC Statistics &amp; Operations Research</p>

@@ -70,28 +70,22 @@ body {
 
 .brand-mark {
   display: grid;
-  width: 4.2rem;
-  height: 4.2rem;
+  width: 4.6rem;
+  height: 4.6rem;
   flex: 0 0 auto;
   place-items: center;
   border-radius: 12px;
-  color: #ffffff;
-  background: linear-gradient(135deg, #13294b 0%, #4b9cd3 100%);
-  box-shadow: 0 14px 28px rgba(19, 41, 75, 0.18);
-  line-height: 1;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(75, 156, 211, 0.25);
+  box-shadow: 0 14px 28px rgba(19, 41, 75, 0.12);
+  overflow: hidden;
 }
 
-.brand-mark span {
-  margin-top: 0.65rem;
-  font-size: 0.74rem;
-  font-weight: 900;
-  letter-spacing: 0.14em;
-}
-
-.brand-mark strong {
-  margin-bottom: 0.75rem;
-  font-size: 1.15rem;
-  letter-spacing: 0.04em;
+.brand-mark img {
+  display: block;
+  width: 76%;
+  height: 76%;
+  object-fit: contain;
 }
 
 .brand-copy {
@@ -700,8 +694,8 @@ a.secondary-button:hover {
   }
 
   .brand-mark {
-    width: 3.6rem;
-    height: 3.6rem;
+    width: 4rem;
+    height: 4rem;
   }
 
   h1 {
