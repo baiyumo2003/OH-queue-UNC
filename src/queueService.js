@@ -1,6 +1,16 @@
 const { query } = require("./db");
 
-async function getActiveQueue() {
+function normalizeCourseFilter(courseNames) {
+  if (!Array.isArray(courseNames) || courseNames.length === 0) {
+    return null;
+  }
+
+  const normalized = courseNames.map((courseName) => String(courseName || "").trim()).filter(Boolean);
+  return normalized.length > 0 ? normalized : null;
+}
+
+async function getActiveQueue(courseNames) {
+  const courseFilter = normalizeCourseFilter(courseNames);
   const result = await query(
     `
       SELECT
@@ -16,8 +26,10 @@ async function getActiveQueue() {
       FROM queue_entries
       WHERE completed_at IS NULL
         AND cancelled_at IS NULL
+        AND ($1::text[] IS NULL OR course_context = ANY($1::text[]))
       ORDER BY joined_at ASC, id ASC;
-    `
+    `,
+    [courseFilter]
   );
 
   return result.rows;
@@ -82,33 +94,38 @@ async function leaveQueue(studentId) {
   );
 }
 
-async function completeEntry(entryId) {
+async function completeEntry(entryId, courseNames) {
+  const courseFilter = normalizeCourseFilter(courseNames);
   await query(
     `
       UPDATE queue_entries
       SET completed_at = NOW()
       WHERE id = $1
         AND completed_at IS NULL
+        AND ($2::text[] IS NULL OR course_context = ANY($2::text[]))
         AND cancelled_at IS NULL;
     `,
-    [entryId]
+    [entryId, courseFilter]
   );
 }
 
-async function cancelEntry(entryId) {
+async function cancelEntry(entryId, courseNames) {
+  const courseFilter = normalizeCourseFilter(courseNames);
   await query(
     `
       UPDATE queue_entries
       SET cancelled_at = NOW()
       WHERE id = $1
         AND completed_at IS NULL
+        AND ($2::text[] IS NULL OR course_context = ANY($2::text[]))
         AND cancelled_at IS NULL;
     `,
-    [entryId]
+    [entryId, courseFilter]
   );
 }
 
-async function getDashboardStats() {
+async function getDashboardStats(courseNames) {
+  const courseFilter = normalizeCourseFilter(courseNames);
   const [summaryResult, completedResult] = await Promise.all([
     query(`
       SELECT
@@ -133,8 +150,9 @@ async function getDashboardStats() {
           ),
           0
         )::INT AS longest_wait_seconds_today
-      FROM queue_entries;
-    `),
+      FROM queue_entries
+      WHERE $1::text[] IS NULL OR course_context = ANY($1::text[]);
+    `, [courseFilter]),
     query(`
       SELECT
         id,
@@ -147,9 +165,10 @@ async function getDashboardStats() {
         EXTRACT(EPOCH FROM (completed_at - joined_at))::INT AS wait_seconds
       FROM queue_entries
       WHERE completed_at >= date_trunc('day', NOW())
+        AND ($1::text[] IS NULL OR course_context = ANY($1::text[]))
       ORDER BY completed_at DESC
       LIMIT 25;
-    `)
+    `, [courseFilter])
   ]);
 
   return {

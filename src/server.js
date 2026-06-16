@@ -5,7 +5,6 @@ const {
   clearRoleOverrideCookie,
   getExternalBaseUrl,
   requireAuth,
-  requireInstructor,
   serializeDevCookie,
   serializeRoleOverride
 } = require("./auth");
@@ -21,6 +20,14 @@ const {
   leaveQueue
 } = require("./queueService");
 const { buildQueueTitle, getStudentCourseName, getStudentCourseNames, setStudentCourseName } = require("./settingsService");
+const {
+  addCourseTa,
+  getCourseTas,
+  getNotificationEmailsForCourse,
+  getTaCoursesForUser,
+  groupTasByCourse,
+  removeCourseTa
+} = require("./taService");
 const { escapeHtml, formatDuration } = require("./utils");
 
 const app = express();
@@ -94,6 +101,67 @@ function normalizeMeetingLocation(input) {
   }
 
   return "";
+}
+
+async function resolveInstructorAccess(user) {
+  if (!user) {
+    return null;
+  }
+
+  if (user.canSwitchRoles) {
+    return { courseNames: null, isAdmin: true, isTa: false };
+  }
+
+  if (user.role === "instructor") {
+    return { courseNames: null, isAdmin: false, isTa: false };
+  }
+
+  const courseNames = await getTaCoursesForUser(user.userId, user.email);
+  if (courseNames.length > 0) {
+    return { courseNames, isAdmin: false, isTa: true };
+  }
+
+  return null;
+}
+
+async function requireInstructorAccess(req, res, next) {
+  if (!req.user) {
+    return redirectWithMessage(res, "/auth/login", {
+      error: "Please sign in with UNC SSO first."
+    });
+  }
+
+  try {
+    const access = await resolveInstructorAccess(req.user);
+    if (!access) {
+      return res.status(403).send(
+        renderLayout({
+          title: "Access denied",
+          body: `
+            <div class="panel">
+              <h2>Access denied</h2>
+              <p>Your account is not configured as an instructor, TA, or role switcher.</p>
+            </div>
+          `
+        })
+      );
+    }
+
+    req.instructorAccess = access;
+    return next();
+  } catch (error) {
+    return next(error);
+  }
+}
+
+function requireCourseAdmin(req, res, next) {
+  if (!req.instructorAccess?.isAdmin) {
+    return redirectWithMessage(res, "/instructor", {
+      error: "Only role switchers can change course choices and TA assignments."
+    });
+  }
+
+  return next();
 }
 
 function renderMeetingLocation(location) {
@@ -355,7 +423,101 @@ function renderHomePage({ user, activeEntry, studentCourseNames, notice, error }
   });
 }
 
-function renderInstructorPage({ user, activeQueue, dashboard, studentCourseName, studentCourseNames, notice, error }) {
+function buildCourseSettingsPanel(studentCourseName) {
+  return `
+    <div class="panel">
+      <h2>Student course choices</h2>
+      <p>Students choose from this list when joining the queue. Separate courses with commas or spaces.</p>
+      <form class="stack-form" method="post" action="/instructor/settings/course-name">
+        <label>
+          Courses
+          <input name="courseName" maxlength="500" value="${escapeHtml(studentCourseName)}" required>
+        </label>
+        <button class="secondary-button" type="submit">Update course choices</button>
+      </form>
+    </div>
+  `;
+}
+
+function buildTaManagementPanel(studentCourseNames, courseTasByCourse) {
+  const courseCards = studentCourseNames
+    .map((courseName) => {
+      const tas = courseTasByCourse.get(courseName) || [];
+      const rows =
+        tas.length === 0
+          ? '<tr><td colspan="4">No TAs assigned to this course yet.</td></tr>'
+          : tas
+              .map(
+                (ta) => `
+                  <tr>
+                    <td>${escapeHtml(ta.ta_identifier)}</td>
+                    <td>${escapeHtml(ta.ta_email)}</td>
+                    <td>${ta.notify_email ? "Yes" : "No"}</td>
+                    <td class="action-cell">
+                      <form method="post" action="/instructor/tas/${ta.id}/remove">
+                        <button class="ghost-button compact-button" type="submit">Remove</button>
+                      </form>
+                    </td>
+                  </tr>
+                `
+              )
+              .join("");
+
+      return `
+        <div class="course-admin-card">
+          <h3>${escapeHtml(courseName)}</h3>
+          <table class="data-table compact-table">
+            <thead>
+              <tr>
+                <th>TA</th>
+                <th>Email</th>
+                <th>Email notifications</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+          <form class="stack-form ta-form" method="post" action="/instructor/tas">
+            <input type="hidden" name="courseName" value="${escapeHtml(courseName)}">
+            <label>
+              TA ONYEN or email
+              <input name="taIdentifier" maxlength="120" placeholder="onyen or onyen@unc.edu" required>
+            </label>
+            <label>
+              TA email
+              <input name="taEmail" type="email" maxlength="200" placeholder="optional; defaults to ONYEN@unc.edu">
+            </label>
+            <label class="checkbox-label">
+              <input name="notifyEmail" type="checkbox" value="true" checked>
+              Send email notifications to this TA
+            </label>
+            <button class="secondary-button" type="submit">Add TA</button>
+          </form>
+        </div>
+      `;
+    })
+    .join("");
+
+  return `
+    <div class="panel">
+      <h2>Course TAs</h2>
+      <p>Add TAs by course. TAs can see their assigned course queues, and the checkbox controls queue-join email notifications.</p>
+      <div class="course-admin-grid">${courseCards}</div>
+    </div>
+  `;
+}
+
+function renderInstructorPage({
+  user,
+  activeQueue,
+  dashboard,
+  studentCourseName,
+  studentCourseNames,
+  instructorAccess,
+  courseTasByCourse,
+  notice,
+  error
+}) {
   const title = buildQueueTitle(studentCourseNames);
   const queueRows =
     activeQueue.length === 0
@@ -414,17 +576,8 @@ function renderInstructorPage({ user, activeQueue, dashboard, studentCourseName,
 
     ${buildRoleSwitchPanel(user)}
 
-    <div class="panel">
-      <h2>Student course choices</h2>
-      <p>Students choose from this list when joining the queue. Separate courses with commas or spaces.</p>
-      <form class="stack-form" method="post" action="/instructor/settings/course-name">
-        <label>
-          Courses
-          <input name="courseName" maxlength="500" value="${escapeHtml(studentCourseName)}" required>
-        </label>
-        <button class="secondary-button" type="submit">Update course choices</button>
-      </form>
-    </div>
+    ${instructorAccess.isAdmin ? buildCourseSettingsPanel(studentCourseName) : ""}
+    ${instructorAccess.isAdmin ? buildTaManagementPanel(studentCourseNames, courseTasByCourse) : ""}
 
     <div class="stat-grid">
       <div class="stat-card">
@@ -577,7 +730,8 @@ app.get("/test-login/instructor", (_req, res) => {
 
 app.get("/", async (req, res, next) => {
   try {
-    if (req.user?.role === "instructor") {
+    const instructorAccess = req.user ? await resolveInstructorAccess(req.user) : null;
+    if (instructorAccess && (req.user.role === "instructor" || instructorAccess.isTa)) {
       return res.redirect("/instructor");
     }
 
@@ -628,6 +782,7 @@ app.post("/queue/join", requireAuth, async (req, res, next) => {
       meetingLocation
     });
 
+    const taNotificationEmails = await getNotificationEmailsForCourse(courseContext);
     sendQueueJoinNotification({
       entry: {
         studentId: req.user.userId,
@@ -637,7 +792,8 @@ app.post("/queue/join", requireAuth, async (req, res, next) => {
         helpTopic,
         meetingLocation
       },
-      instructorUrl: `${getExternalBaseUrl(req)}/instructor`
+      instructorUrl: `${getExternalBaseUrl(req)}/instructor`,
+      extraRecipients: taNotificationEmails
     }).catch((error) => {
       console.error("Failed to send queue join notification", error);
     });
@@ -662,14 +818,19 @@ app.post("/queue/leave", requireAuth, async (req, res, next) => {
   }
 });
 
-app.get("/instructor", requireInstructor, async (req, res, next) => {
+app.get("/instructor", requireInstructorAccess, async (req, res, next) => {
   try {
-    const [activeQueue, dashboard, studentCourseName, studentCourseNames] = await Promise.all([
-      getActiveQueue(),
-      getDashboardStats(),
+    const instructorAccess = req.instructorAccess;
+    const [studentCourseName, studentCourseNames] = await Promise.all([
       getStudentCourseName(),
       getStudentCourseNames()
     ]);
+    const [activeQueue, dashboard, courseTas] = await Promise.all([
+      getActiveQueue(instructorAccess.courseNames),
+      getDashboardStats(instructorAccess.courseNames),
+      instructorAccess.isAdmin ? getCourseTas(studentCourseNames) : []
+    ]);
+
     res.send(
       renderInstructorPage({
         user: req.user,
@@ -677,6 +838,8 @@ app.get("/instructor", requireInstructor, async (req, res, next) => {
         dashboard,
         studentCourseName,
         studentCourseNames,
+        instructorAccess,
+        courseTasByCourse: groupTasByCourse(courseTas),
         notice: req.query.notice,
         error: req.query.error
       })
@@ -686,7 +849,7 @@ app.get("/instructor", requireInstructor, async (req, res, next) => {
   }
 });
 
-app.post("/instructor/settings/course-name", requireInstructor, async (req, res, next) => {
+app.post("/instructor/settings/course-name", requireInstructorAccess, requireCourseAdmin, async (req, res, next) => {
   try {
     await setStudentCourseName(req.body.courseName);
     return redirectWithMessage(res, "/instructor", { notice: "Student course choices updated." });
@@ -698,18 +861,45 @@ app.post("/instructor/settings/course-name", requireInstructor, async (req, res,
   }
 });
 
-app.post("/instructor/entries/:entryId/complete", requireInstructor, async (req, res, next) => {
+app.post("/instructor/tas", requireInstructorAccess, requireCourseAdmin, async (req, res, next) => {
   try {
-    await completeEntry(req.params.entryId);
+    await addCourseTa({
+      courseName: req.body.courseName,
+      taIdentifier: req.body.taIdentifier,
+      taEmail: req.body.taEmail,
+      notifyEmail: req.body.notifyEmail === "true"
+    });
+
+    return redirectWithMessage(res, "/instructor", { notice: "TA assignment saved." });
+  } catch (error) {
+    if (error.message === "Course, TA identifier, and TA email are required.") {
+      return redirectWithMessage(res, "/instructor", { error: error.message });
+    }
+    next(error);
+  }
+});
+
+app.post("/instructor/tas/:taId/remove", requireInstructorAccess, requireCourseAdmin, async (req, res, next) => {
+  try {
+    await removeCourseTa(req.params.taId);
+    return redirectWithMessage(res, "/instructor", { notice: "TA assignment removed." });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/instructor/entries/:entryId/complete", requireInstructorAccess, async (req, res, next) => {
+  try {
+    await completeEntry(req.params.entryId, req.instructorAccess.courseNames);
     return redirectWithMessage(res, "/instructor", { notice: "Queue entry marked complete." });
   } catch (error) {
     next(error);
   }
 });
 
-app.post("/instructor/entries/:entryId/cancel", requireInstructor, async (req, res, next) => {
+app.post("/instructor/entries/:entryId/cancel", requireInstructorAccess, async (req, res, next) => {
   try {
-    await cancelEntry(req.params.entryId);
+    await cancelEntry(req.params.entryId, req.instructorAccess.courseNames);
     return redirectWithMessage(res, "/instructor", { notice: "Queue entry removed." });
   } catch (error) {
     next(error);

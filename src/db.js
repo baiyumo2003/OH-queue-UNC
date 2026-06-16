@@ -35,6 +35,17 @@ async function initDb() {
     );
   `);
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS course_tas (
+      id BIGSERIAL PRIMARY KEY,
+      course_name TEXT NOT NULL,
+      ta_identifier TEXT NOT NULL,
+      ta_email TEXT NOT NULL,
+      notify_email BOOLEAN NOT NULL DEFAULT true,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
+
   await pool.query(
     `
       INSERT INTO app_settings (key, value)
@@ -76,6 +87,16 @@ async function initDb() {
     CREATE INDEX IF NOT EXISTS queue_entries_completed_idx
     ON queue_entries (completed_at)
     WHERE completed_at IS NOT NULL;
+  `);
+
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS course_tas_course_identifier_idx
+    ON course_tas (course_name, ta_identifier);
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS course_tas_identifier_idx
+    ON course_tas (ta_identifier);
   `);
 }
 

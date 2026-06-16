@@ -7,7 +7,16 @@ function isEnabled() {
   return String(process.env.EMAIL_NOTIFICATIONS_ENABLED || "").toLowerCase() === "true";
 }
 
-function getRecipients() {
+function normalizeRecipient(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (!normalized) {
+    return "";
+  }
+
+  return normalized.includes("@") ? normalized : `${normalized}@unc.edu`;
+}
+
+function getRecipients(extraRecipients = []) {
   const configured =
     process.env.QUEUE_NOTIFICATION_RECIPIENTS ||
     process.env.INSTRUCTOR_NOTIFICATION_EMAILS ||
@@ -15,11 +24,16 @@ function getRecipients() {
     "";
 
   const values = configured || process.env.INSTRUCTOR_IDS || "";
-  return String(values)
-    .split(",")
-    .map((value) => value.trim().toLowerCase())
-    .filter(Boolean)
-    .map((value) => (value.includes("@") ? value : `${value}@unc.edu`));
+  return Array.from(
+    new Set(
+      [
+        ...String(values)
+          .split(",")
+          .map(normalizeRecipient),
+        ...extraRecipients.map(normalizeRecipient)
+      ].filter(Boolean)
+    )
+  );
 }
 
 function getTransporter() {
@@ -80,12 +94,12 @@ function buildQueueJoinMessage({ entry, instructorUrl }) {
   return { html, subject, text };
 }
 
-async function sendQueueJoinNotification({ entry, instructorUrl }) {
+async function sendQueueJoinNotification({ entry, instructorUrl, extraRecipients = [] }) {
   if (!isEnabled()) {
     return { skipped: true, reason: "disabled" };
   }
 
-  const to = getRecipients();
+  const to = getRecipients(extraRecipients);
   if (to.length === 0) {
     return { skipped: true, reason: "no recipients" };
   }

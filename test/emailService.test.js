@@ -21,6 +21,20 @@ test("getRecipients falls back to instructor IDs and expands ONYENs", () => {
   assert.deepEqual(getRecipients(), ["teacher1@unc.edu", "teacher2@unc.edu"]);
 });
 
+test("getRecipients merges and deduplicates course TA recipients", () => {
+  process.env.QUEUE_NOTIFICATION_RECIPIENTS = "teacher@unc.edu, ta1@unc.edu";
+  process.env.INSTRUCTOR_IDS = "fallback";
+
+  assert.deepEqual(getRecipients(["ta1@unc.edu", "ta2", "TA3@UNC.EDU"]), [
+    "teacher@unc.edu",
+    "ta1@unc.edu",
+    "ta2@unc.edu",
+    "ta3@unc.edu"
+  ]);
+
+  delete process.env.QUEUE_NOTIFICATION_RECIPIENTS;
+});
+
 test("buildQueueJoinMessage includes student and dashboard details", () => {
   const message = buildQueueJoinMessage({
     entry: {
