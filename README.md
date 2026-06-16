@@ -2,9 +2,9 @@
 
 A lightweight web app for running UNC office hours queues across one or more courses.
 
-Students sign in with UNC SSO, choose a course, describe what they need help with, and join the queue. Professors, instructors, and TAs use a staff dashboard to view the live queue, manage entries, review wait-time statistics, and configure course-specific TA access.
+Students sign in with UNC SSO, choose a course, describe what they need help with, and join the queue. Professors and TAs use a staff dashboard to view the live queue, manage entries, review wait-time statistics, and configure course-specific TA access.
 
-Staff guide: [Professor and TA User Manual](docs/instructor-ta-manual.md)
+Staff guide: [Professor and TA User Manual](docs/professor-ta-manual.md)
 
 ## Features
 
@@ -12,10 +12,10 @@ Staff guide: [Professor and TA User Manual](docs/instructor-ta-manual.md)
 - Student queue form with course selection, help topic, and location.
 - Students only see their own queue position and wait information.
 - One active queue entry per student.
-- Instructor dashboard with live queue management.
+- Staff dashboard with live queue management.
 - Dashboard views for a unified join-time queue or course-separated queues.
 - Course-level TA access.
-- Role switchers can manage course names and TA assignments.
+- Professors can manage course names and TA assignments.
 - Course-specific email notification settings for TAs.
 - Queue join emails through SMTP, including UNC relay support.
 - Daily and live queue statistics, including per-course wait metrics.
@@ -38,7 +38,7 @@ Students cannot see other students or the full queue.
 
 ### TA
 
-TAs are assigned to one or more courses from the instructor dashboard. A TA can:
+TAs are assigned to one or more courses from the staff dashboard. A TA can:
 
 - View only their assigned course queues.
 - Switch between **Joined time** and **By course** queue views.
@@ -46,17 +46,15 @@ TAs are assigned to one or more courses from the instructor dashboard. A TA can:
 - Remove abandoned or mistaken entries.
 - Receive queue-join emails for assigned courses when enabled.
 
-### Instructor
+### Professor
 
-Instructors listed in `INSTRUCTOR_IDS` can access the instructor dashboard and manage the queue.
-
-### Role Switcher / Professor
-
-Users listed in `ROLE_SWITCH_USERS` can switch into instructor view and manage:
+Professors listed in `ROLE_SWITCH_USERS` can switch into staff view and manage:
 
 - Student-facing course choices.
 - Course-specific TA assignments.
 - Whether each TA receives email notifications for each course.
+
+The legacy environment variable `INSTRUCTOR_IDS` can also grant broad staff dashboard access, but day-to-day course administration should use `ROLE_SWITCH_USERS` for professors and dashboard-managed TA assignments for TAs.
 
 ## Tech Stack
 
@@ -73,7 +71,7 @@ Users listed in `ROLE_SWITCH_USERS` can switch into instructor view and manage:
 ```text
 .
 ├── docs/
-│   └── instructor-ta-manual.md
+│   └── professor-ta-manual.md
 ├── public/
 │   ├── styles.css
 │   └── unc-stor-logo.png
@@ -123,8 +121,8 @@ export DATABASE_URL='postgresql://localhost:5432/student_queue'
 export TRUST_PROXY_AUTH=false
 export ALLOW_DEV_AUTH=true
 export TEST_LOGIN_ENABLED=true
-export INSTRUCTOR_IDS='testinstructor'
-export ROLE_SWITCH_USERS='testinstructor'
+export INSTRUCTOR_IDS='testprofessor'
+export ROLE_SWITCH_USERS='testprofessor'
 export STUDENT_COURSE_NAME='STOR113, STOR118'
 export APP_BASE_URL='http://localhost:3000'
 ```
@@ -141,12 +139,7 @@ Open:
 http://localhost:3000
 ```
 
-When `ALLOW_DEV_AUTH=true`, use the dev login form. When `TEST_LOGIN_ENABLED=true`, these test routes are also available:
-
-```text
-/test-login/student
-/test-login/instructor
-```
+When `ALLOW_DEV_AUTH=true`, use the dev login form. `TEST_LOGIN_ENABLED=true` also enables bookmarkable student and staff test-login endpoints for local development.
 
 ### 5. Run tests
 
@@ -169,8 +162,8 @@ npm test
 | `PORT` | Port for the Node server. Defaults to `3000`; CloudApps commonly uses `8080` inside the container. |
 | `APP_BASE_URL` | Public base URL used for SSO redirects and email dashboard links. |
 | `TRUST_PROXY_AUTH` | Set to `true` in CloudApps when Shibboleth headers are trusted. |
-| `INSTRUCTOR_IDS` | Comma-separated ONYENs or emails with instructor dashboard access. |
-| `ROLE_SWITCH_USERS` | Comma-separated ONYENs or emails that can switch roles and manage courses/TAs. |
+| `INSTRUCTOR_IDS` | Legacy comma-separated ONYENs or emails with broad staff dashboard access. |
+| `ROLE_SWITCH_USERS` | Comma-separated professor ONYENs or emails that can switch roles and manage courses/TAs. |
 | `STUDENT_COURSE_NAME` | Initial course list before it is changed from the dashboard. Courses may be separated by commas or spaces. |
 | `DATABASE_SSL` | Set to `true` if your PostgreSQL connection requires SSL. |
 
@@ -179,15 +172,15 @@ npm test
 | Variable | Description |
 | --- | --- |
 | `ALLOW_DEV_AUTH` | Enables the local dev login form. Do not enable in production. |
-| `TEST_LOGIN_ENABLED` | Enables `/test-login/student` and `/test-login/instructor`. Do not enable in production. |
+| `TEST_LOGIN_ENABLED` | Enables the student and staff test-login routes. Do not enable in production. |
 | `TEST_STUDENT_ONYEN` | Test student ONYEN. |
 | `TEST_STUDENT_NAME` | Test student display name. |
 | `TEST_STUDENT_EMAIL` | Test student email. |
-| `TEST_INSTRUCTOR_ONYEN` | Test instructor ONYEN. |
-| `TEST_INSTRUCTOR_NAME` | Test instructor display name. |
-| `TEST_INSTRUCTOR_EMAIL` | Test instructor email. |
+| `TEST_INSTRUCTOR_ONYEN` | Test professor/staff ONYEN. |
+| `TEST_INSTRUCTOR_NAME` | Test professor/staff display name. |
+| `TEST_INSTRUCTOR_EMAIL` | Test professor/staff email. |
 | `STUDENT_VIEW_KEY` | Optional access key for switching to student view. |
-| `INSTRUCTOR_VIEW_KEY` | Optional access key for switching to instructor view. |
+| `INSTRUCTOR_VIEW_KEY` | Optional access key for switching to staff view. |
 
 ### Email Notifications
 
@@ -206,7 +199,7 @@ npm test
 
 If `QUEUE_NOTIFICATION_RECIPIENTS`, `INSTRUCTOR_NOTIFICATION_EMAILS`, and `INSTRUCTOR_EMAILS` are all unset, the app falls back to `INSTRUCTOR_IDS` and treats bare ONYENs as `<onyen>@unc.edu`.
 
-Course-specific TA notification emails are managed inside the instructor dashboard.
+Course-specific TA notification emails are managed inside the staff dashboard.
 
 ### SSO Overrides
 
@@ -319,7 +312,7 @@ oc set env deployment/student-queue \
   SMTP_SECURE=false
 ```
 
-Course-specific TA recipients can then be configured from the instructor dashboard.
+Course-specific TA recipients can then be configured from the staff dashboard.
 
 ### 6. Add the UNC Shibboleth Proxy
 
@@ -365,7 +358,7 @@ oc logs deployment/student-queue --tail=100
 
 ### Configure Courses
 
-Role switchers can edit the course list in **Student course choices**.
+Professors can edit the course list in **Student course choices**.
 
 Courses may be separated by commas or spaces:
 
@@ -375,7 +368,7 @@ STOR113, STOR118, STOR666
 
 ### Add TAs
 
-Role switchers can add TAs under **Course TAs**. Each TA assignment includes:
+Professors can add TAs under **Course TAs**. Each TA assignment includes:
 
 - Course name.
 - TA ONYEN or email.
@@ -418,7 +411,7 @@ Current app health endpoint:
 
 - Keep `ALLOW_DEV_AUTH=false` and `TEST_LOGIN_ENABLED=false` in production.
 - `ROLE_SWITCH_USERS` should be limited to trusted course administrators.
-- `INSTRUCTOR_IDS` grants broad instructor dashboard access.
+- `INSTRUCTOR_IDS` is retained as a legacy broad staff-dashboard access setting.
 - TA access is best managed from the dashboard rather than environment variables.
 - The student-facing course list is stored in PostgreSQL after it is changed from the dashboard.
 - Course/TA assignments are stored in PostgreSQL.
@@ -426,6 +419,6 @@ Current app health endpoint:
 
 ## Related Documentation
 
-- [Professor and TA User Manual](docs/instructor-ta-manual.md)
+- [Professor and TA User Manual](docs/professor-ta-manual.md)
 - UNC CloudApps documentation
 - UNC Shibboleth Proxy documentation

@@ -1,13 +1,12 @@
 # Office Hours Queue: Professor and TA User Manual
 
-This guide explains how professors, instructors, and TAs use the UNC STOR Office Hours Queue.
+This guide explains how professors and TAs use the UNC STOR Office Hours Queue.
 
 ## Roles
 
-The app has three staff-facing roles:
+The app has two staff-facing roles:
 
-- **Professor / role switcher**: can manage course names, add or remove TAs, decide whether each TA receives queue email notifications, and view all course queues.
-- **Instructor**: can view and manage the instructor dashboard for the configured queue.
+- **Professor**: can manage course names, add or remove TAs, decide whether each TA receives queue email notifications, and view all course queues.
 - **TA**: can view and manage only the courses assigned to them.
 
 Students only see their own queue position, wait time, and how many people are ahead of them.
@@ -16,16 +15,16 @@ Students only see their own queue position, wait time, and how many people are a
 
 1. Open the queue website.
 2. Sign in with UNC SSO if prompted.
-3. After signing in, staff users should open the instructor dashboard.
-4. If your account is a role switcher, use the **Role switch** panel to enter instructor view.
+3. After signing in, staff users should open the staff dashboard.
+4. If your account has role switching enabled, use the **Role switch** panel to enter staff view.
 
-If you cannot access the instructor dashboard, your ONYEN may not be configured as an instructor, role switcher, or TA.
+If you cannot access the staff dashboard, your ONYEN may not be configured as a professor or TA.
 
-## Professor / Role Switcher Workflow
+## Professor Workflow
 
 ### Change Course Names
 
-1. Go to the instructor dashboard.
+1. Go to the staff dashboard.
 2. Find **Student course choices**.
 3. Enter the course names students should choose from.
 4. Separate courses with commas or spaces.
@@ -48,7 +47,7 @@ Students will see these courses in the course dropdown when joining the queue.
 
 ### Add a TA to a Course
 
-1. Go to the instructor dashboard.
+1. Go to the staff dashboard.
 2. Find **Course TAs**.
 3. Locate the course.
 4. Enter the TA's ONYEN or UNC email address.
@@ -61,7 +60,7 @@ Students will see these courses in the course dropdown when joining the queue.
 6. Use the email checkbox to decide whether this TA should receive queue-join email notifications for that course.
 7. Click **Add TA**.
 
-After the TA is added, they can access the instructor dashboard for that course.
+After the TA is added, they can access the staff dashboard for that course.
 
 ### Remove a TA
 
@@ -76,7 +75,7 @@ Removing a TA also removes their access to that course's staff queue view.
 ### View Assigned Course Queues
 
 1. Sign in with UNC SSO.
-2. Open the instructor dashboard.
+2. Open the staff dashboard.
 3. The dashboard will show only the courses assigned to you.
 
 If you are assigned to multiple courses, you can manage all of those courses from the same dashboard.
@@ -170,7 +169,7 @@ Before office hours:
 
 During office hours:
 
-1. Keep the instructor dashboard open.
+1. Keep the staff dashboard open.
 2. Use **Joined time** for first-come-first-served support.
 3. Use **By course** when staffing is split by course.
 4. Mark students helped as soon as their visit is complete.
@@ -184,13 +183,13 @@ After office hours:
 
 ## Troubleshooting
 
-### A TA cannot access the instructor dashboard
+### A TA cannot access the staff dashboard
 
 Check that the TA was added under the correct course and that the ONYEN or email address was entered correctly.
 
 ### A TA can access the dashboard but cannot see a course
 
-The TA is probably not assigned to that specific course. A role switcher should add the TA under that course.
+The TA is probably not assigned to that specific course. A professor should add the TA under that course.
 
 ### A TA did not receive an email
 
@@ -211,4 +210,4 @@ Common causes:
 
 ### The wrong course names appear
 
-A role switcher should update **Student course choices** from the instructor dashboard.
+A professor should update **Student course choices** from the staff dashboard.
