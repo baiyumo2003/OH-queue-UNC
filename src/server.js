@@ -362,7 +362,8 @@ function renderLayout({ title, body, courseNames = [], notice = "", error = "" }
 }
 
 function buildRoleSwitchPanel(user) {
-  if (!user || (!user.canSwitchRoles && !hasRoleAccessKeys())) {
+  const isAdminUser = isAdministrator(user);
+  if (!user || (!user.canSwitchRoles && !isAdminUser && !hasRoleAccessKeys())) {
     return "";
   }
 
@@ -371,7 +372,7 @@ function buildRoleSwitchPanel(user) {
       <h2>Role switch</h2>
       <p>Signed in as <strong>${escapeHtml(user.userId)}</strong>. Current role: <strong>${escapeHtml(user.role)}</strong>.</p>
       ${
-        user.canSwitchRoles
+        user.canSwitchRoles || isAdminUser
           ? `
             <div class="button-row">
               <form method="post" action="/session/role">
@@ -406,6 +407,37 @@ function buildRoleSwitchPanel(user) {
           `
           : ""
       }
+    </div>
+  `;
+}
+
+function normalizeStaffView(value, instructorAccess) {
+  if (!instructorAccess?.isAdmin) {
+    return "professor";
+  }
+
+  return value === "professor" ? "professor" : "administrator";
+}
+
+function buildStaffViewSwitcher(staffView) {
+  return `
+    <div class="panel">
+      <div class="panel-heading-row">
+        <div>
+          <p class="section-kicker">Administrator views</p>
+          <h2>Choose working view</h2>
+        </div>
+        <span class="chip">${icon("user")} Administrator</span>
+      </div>
+      <div class="view-toggle staff-view-toggle" aria-label="Administrator view">
+        <form method="post" action="/session/role">
+          <input type="hidden" name="role" value="student">
+          <button type="submit">Student view</button>
+        </form>
+        <a class="${staffView === "administrator" ? "active" : ""}" href="/instructor?staffView=administrator">Administrator view</a>
+        <a class="${staffView === "professor" ? "active" : ""}" href="/instructor?staffView=professor">Professor view</a>
+      </div>
+      <p class="queue-meta">Administrator view includes course setup, professor assignment, exports, TA management, and roster rules. Professor view shows the course-level tools a professor uses.</p>
     </div>
   `;
 }
@@ -599,32 +631,39 @@ function buildProfessorAssignmentPanel(studentCourseNames, courseProfessorsByCou
   const courseCards = studentCourseNames
     .map((courseName) => {
       const professor = courseProfessorsByCourse.get(courseName);
+      const professorSummary = professor ? professor.professor_identifier : "No professor";
       return `
-        <div class="course-admin-card">
-          <div class="panel-heading-row">
-            <div>
-              <h3>${escapeHtml(courseName)}</h3>
-              <p class="queue-meta">${
-                professor
-                  ? `Professor: ${escapeHtml(professor.professor_identifier)} (${escapeHtml(professor.professor_email)})`
-                  : "No professor assigned yet."
-              }</p>
+        <details class="course-admin-card collapsible-course">
+          <summary>
+            <span class="summary-title">${escapeHtml(courseName)}</span>
+            <span class="summary-meta">${escapeHtml(professorSummary)}</span>
+          </summary>
+          <div class="collapsible-body">
+            <div class="panel-heading-row">
+              <div>
+                <h3>${escapeHtml(courseName)}</h3>
+                <p class="queue-meta">${
+                  professor
+                    ? `Professor: ${escapeHtml(professor.professor_identifier)} (${escapeHtml(professor.professor_email)})`
+                    : "No professor assigned yet."
+                }</p>
+              </div>
+              <a class="secondary-button compact-button" href="/instructor/courses/${encodeURIComponent(courseName)}/export">${icon("layers")} Export DB package</a>
             </div>
-            <a class="secondary-button compact-button" href="/instructor/courses/${encodeURIComponent(courseName)}/export">${icon("layers")} Export DB package</a>
+            <form class="stack-form ta-form" method="post" action="/instructor/professors">
+              <input type="hidden" name="courseName" value="${escapeHtml(courseName)}">
+              <label>
+                Professor ONYEN or email
+                <input name="professorIdentifier" maxlength="120" value="${escapeHtml(professor?.professor_identifier || "")}" placeholder="onyen or onyen@unc.edu" required>
+              </label>
+              <label>
+                Professor email
+                <input name="professorEmail" type="email" maxlength="200" value="${escapeHtml(professor?.professor_email || "")}" placeholder="optional; defaults to ONYEN@unc.edu">
+              </label>
+              <button class="secondary-button" type="submit">Assign professor</button>
+            </form>
           </div>
-          <form class="stack-form ta-form" method="post" action="/instructor/professors">
-            <input type="hidden" name="courseName" value="${escapeHtml(courseName)}">
-            <label>
-              Professor ONYEN or email
-              <input name="professorIdentifier" maxlength="120" value="${escapeHtml(professor?.professor_identifier || "")}" placeholder="onyen or onyen@unc.edu" required>
-            </label>
-            <label>
-              Professor email
-              <input name="professorEmail" type="email" maxlength="200" value="${escapeHtml(professor?.professor_email || "")}" placeholder="optional; defaults to ONYEN@unc.edu">
-            </label>
-            <button class="secondary-button" type="submit">Assign professor</button>
-          </form>
-        </div>
+        </details>
       `;
     })
     .join("");
@@ -667,36 +706,42 @@ function buildTaManagementPanel(managedCourseNames, courseTasByCourse) {
               .join("");
 
       return `
-        <div class="course-admin-card">
-          <h3>${escapeHtml(courseName)}</h3>
-          <table class="data-table compact-table">
-            <thead>
-              <tr>
-                <th>TA</th>
-                <th>Email</th>
-                <th>Email notifications</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>${rows}</tbody>
-          </table>
-          <form class="stack-form ta-form" method="post" action="/instructor/tas">
-            <input type="hidden" name="courseName" value="${escapeHtml(courseName)}">
-            <label>
-              TA ONYEN or email
-              <input name="taIdentifier" maxlength="120" placeholder="onyen or onyen@unc.edu" required>
-            </label>
-            <label>
-              TA email
-              <input name="taEmail" type="email" maxlength="200" placeholder="optional; defaults to ONYEN@unc.edu">
-            </label>
-            <label class="checkbox-label">
-              <input name="notifyEmail" type="checkbox" value="true" checked>
-              Send email notifications to this TA
-            </label>
-            <button class="secondary-button" type="submit">Add TA</button>
-          </form>
-        </div>
+        <details class="course-admin-card collapsible-course">
+          <summary>
+            <span class="summary-title">${escapeHtml(courseName)}</span>
+            <span class="summary-meta">${tas.length} TA${tas.length === 1 ? "" : "s"}</span>
+          </summary>
+          <div class="collapsible-body">
+            <h3>${escapeHtml(courseName)}</h3>
+            <table class="data-table compact-table">
+              <thead>
+                <tr>
+                  <th>TA</th>
+                  <th>Email</th>
+                  <th>Email notifications</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>${rows}</tbody>
+            </table>
+            <form class="stack-form ta-form" method="post" action="/instructor/tas">
+              <input type="hidden" name="courseName" value="${escapeHtml(courseName)}">
+              <label>
+                TA ONYEN or email
+                <input name="taIdentifier" maxlength="120" placeholder="onyen or onyen@unc.edu" required>
+              </label>
+              <label>
+                TA email
+                <input name="taEmail" type="email" maxlength="200" placeholder="optional; defaults to ONYEN@unc.edu">
+              </label>
+              <label class="checkbox-label">
+                <input name="notifyEmail" type="checkbox" value="true" checked>
+                Send email notifications to this TA
+              </label>
+              <button class="secondary-button" type="submit">Add TA</button>
+            </form>
+          </div>
+        </details>
       `;
     })
     .join("");
@@ -741,59 +786,68 @@ function buildRosterManagementPanel(managedCourseNames, rosterSettingsByCourseMa
                 `
               )
               .join("");
+      const rosterSummary = restrictToRoster
+        ? `${allowedCount} allowed, restricted`
+        : `${allowedCount} allowed, open`;
 
       return `
-        <div class="course-admin-card">
-          <div class="panel-heading-row">
-            <div>
-              <h3>${escapeHtml(courseName)}</h3>
-              <p class="queue-meta">${allowedCount} allowed student${allowedCount === 1 ? "" : "s"} imported.</p>
+        <details class="course-admin-card collapsible-course">
+          <summary>
+            <span class="summary-title">${escapeHtml(courseName)}</span>
+            <span class="summary-meta">${escapeHtml(rosterSummary)}</span>
+          </summary>
+          <div class="collapsible-body">
+            <div class="panel-heading-row">
+              <div>
+                <h3>${escapeHtml(courseName)}</h3>
+                <p class="queue-meta">${allowedCount} allowed student${allowedCount === 1 ? "" : "s"} imported.</p>
+              </div>
+              <form method="post" action="/instructor/rosters/settings">
+                <input type="hidden" name="courseName" value="${escapeHtml(courseName)}">
+                <label class="checkbox-label">
+                  <input name="restrictToRoster" type="checkbox" value="true" ${restrictToRoster ? "checked" : ""}>
+                  Only roster students can join
+                </label>
+                <button class="secondary-button compact-button" type="submit">Save roster rule</button>
+              </form>
             </div>
-            <form method="post" action="/instructor/rosters/settings">
+            <form class="stack-form ta-form" method="post" action="/instructor/rosters/import" enctype="multipart/form-data">
               <input type="hidden" name="courseName" value="${escapeHtml(courseName)}">
-              <label class="checkbox-label">
-                <input name="restrictToRoster" type="checkbox" value="true" ${restrictToRoster ? "checked" : ""}>
-                Only roster students can join
+              <label>
+                Import Canvas CSV
+                <input name="rosterCsv" type="file" accept=".csv,text/csv" required>
               </label>
-              <button class="secondary-button compact-button" type="submit">Save roster rule</button>
+              <button class="secondary-button" type="submit">${icon("layers")} Import SIS Login IDs</button>
             </form>
+            <form class="stack-form ta-form" method="post" action="/instructor/rosters/students">
+              <input type="hidden" name="courseName" value="${escapeHtml(courseName)}">
+              <label>
+                Student ONYEN
+                <input name="studentIdentifier" maxlength="120" placeholder="onyen" required>
+              </label>
+              <label>
+                Student name
+                <input name="studentName" maxlength="200" placeholder="optional">
+              </label>
+              <label>
+                Student email
+                <input name="studentEmail" type="email" maxlength="200" placeholder="optional; defaults to ONYEN@unc.edu">
+              </label>
+              <button class="secondary-button" type="submit">Add allowed student</button>
+            </form>
+            <table class="data-table compact-table">
+              <thead>
+                <tr>
+                  <th>ONYEN</th>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>${previewRows}</tbody>
+            </table>
           </div>
-          <form class="stack-form ta-form" method="post" action="/instructor/rosters/import" enctype="multipart/form-data">
-            <input type="hidden" name="courseName" value="${escapeHtml(courseName)}">
-            <label>
-              Import Canvas CSV
-              <input name="rosterCsv" type="file" accept=".csv,text/csv" required>
-            </label>
-            <button class="secondary-button" type="submit">${icon("layers")} Import SIS Login IDs</button>
-          </form>
-          <form class="stack-form ta-form" method="post" action="/instructor/rosters/students">
-            <input type="hidden" name="courseName" value="${escapeHtml(courseName)}">
-            <label>
-              Student ONYEN
-              <input name="studentIdentifier" maxlength="120" placeholder="onyen" required>
-            </label>
-            <label>
-              Student name
-              <input name="studentName" maxlength="200" placeholder="optional">
-            </label>
-            <label>
-              Student email
-              <input name="studentEmail" type="email" maxlength="200" placeholder="optional; defaults to ONYEN@unc.edu">
-            </label>
-            <button class="secondary-button" type="submit">Add allowed student</button>
-          </form>
-          <table class="data-table compact-table">
-            <thead>
-              <tr>
-                <th>ONYEN</th>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>${previewRows}</tbody>
-          </table>
-        </div>
+        </details>
       `;
     })
     .join("");
@@ -875,16 +929,17 @@ function buildActiveQueueTable(entries, { emptyMessage, startIndex = 0 } = {}) {
   `;
 }
 
-function buildQueueViewToggle(queueView) {
+function buildQueueViewToggle(queueView, staffView) {
+  const staffViewSuffix = staffView ? `&staffView=${encodeURIComponent(staffView)}` : "";
   return `
     <div class="view-toggle" aria-label="Queue view">
-      <a class="${queueView === "unified" ? "active" : ""}" href="/instructor?queueView=unified">Joined time</a>
-      <a class="${queueView === "course" ? "active" : ""}" href="/instructor?queueView=course">By course</a>
+      <a class="${queueView === "unified" ? "active" : ""}" href="/instructor?queueView=unified${staffViewSuffix}">Joined time</a>
+      <a class="${queueView === "course" ? "active" : ""}" href="/instructor?queueView=course${staffViewSuffix}">By course</a>
     </div>
   `;
 }
 
-function buildActiveQueuePanel({ activeQueue, studentCourseNames, instructorAccess, queueView }) {
+function buildActiveQueuePanel({ activeQueue, studentCourseNames, instructorAccess, queueView, staffView }) {
   if (queueView === "course") {
     const courseOrder = getInstructorCourseOrder(activeQueue, studentCourseNames, instructorAccess);
     const grouped = new Map(courseOrder.map((courseName) => [courseName, []]));
@@ -898,15 +953,17 @@ function buildActiveQueuePanel({ activeQueue, studentCourseNames, instructorAcce
 
     const courseSections = Array.from(grouped.entries())
       .map(([courseName, entries]) => `
-        <section class="queue-course-section">
-          <div class="course-section-heading">
-            <h3>${escapeHtml(courseName)}</h3>
-            <span class="pill">${entries.length} waiting</span>
+        <details class="queue-course-section collapsible-course" ${entries.length > 0 ? "open" : ""}>
+          <summary>
+            <span class="summary-title">${escapeHtml(courseName)}</span>
+            <span class="summary-meta">${entries.length} waiting</span>
+          </summary>
+          <div class="collapsible-body">
+            ${buildActiveQueueTable(entries, {
+              emptyMessage: "No active students for this course."
+            })}
           </div>
-          ${buildActiveQueueTable(entries, {
-            emptyMessage: "No active students for this course."
-          })}
-        </section>
+        </details>
       `)
       .join("");
 
@@ -914,7 +971,7 @@ function buildActiveQueuePanel({ activeQueue, studentCourseNames, instructorAcce
       <div class="panel">
         <div class="panel-heading-row">
           <h2>Active queue</h2>
-          ${buildQueueViewToggle(queueView)}
+          ${buildQueueViewToggle(queueView, staffView)}
         </div>
         <div class="course-queue-stack">${courseSections}</div>
       </div>
@@ -925,7 +982,7 @@ function buildActiveQueuePanel({ activeQueue, studentCourseNames, instructorAcce
     <div class="panel">
       <div class="panel-heading-row">
         <h2>Active queue</h2>
-        ${buildQueueViewToggle(queueView)}
+        ${buildQueueViewToggle(queueView, staffView)}
       </div>
       ${buildActiveQueueTable(activeQueue)}
     </div>
@@ -1066,12 +1123,20 @@ function renderInstructorPage({
   allowedStudentCounts,
   allowedStudentsByCourseMap,
   queueView,
+  staffView,
   notice,
   error
 }) {
   const title = buildQueueTitle(studentCourseNames);
   const visibleCourses = getInstructorCourseOrder(activeQueue, studentCourseNames, instructorAccess);
-  const roleLabel = instructorAccess.isAdmin ? "Administrator" : instructorAccess.isProfessor ? "Professor" : "TA";
+  const showAdminControls = instructorAccess.isAdmin && staffView === "administrator";
+  const roleLabel = instructorAccess.isAdmin
+    ? staffView === "professor"
+      ? "Administrator · professor view"
+      : "Administrator"
+    : instructorAccess.isProfessor
+      ? "Professor"
+      : "TA";
   const managedCourseNames = instructorAccess.isAdmin ? studentCourseNames : instructorAccess.managedCourseNames || [];
 
   const completedRows =
@@ -1111,17 +1176,17 @@ function renderInstructorPage({
       }
     </div>
 
-    ${buildRoleSwitchPanel(user)}
+    ${instructorAccess.isAdmin ? buildStaffViewSwitcher(staffView) : buildRoleSwitchPanel(user)}
 
-    ${instructorAccess.isAdmin ? buildCourseSettingsPanel(studentCourseName) : ""}
-    ${instructorAccess.isAdmin ? buildProfessorAssignmentPanel(studentCourseNames, courseProfessorsByCourse) : ""}
+    ${showAdminControls ? buildCourseSettingsPanel(studentCourseName) : ""}
+    ${showAdminControls ? buildProfessorAssignmentPanel(studentCourseNames, courseProfessorsByCourse) : ""}
     ${buildTaManagementPanel(managedCourseNames, courseTasByCourse)}
     ${buildRosterManagementPanel(managedCourseNames, rosterSettingsByCourseMap, allowedStudentCounts, allowedStudentsByCourseMap)}
 
     ${buildDashboardStatsPanel(dashboard)}
     ${buildCourseStatsPanel({ dashboard, studentCourseNames, instructorAccess })}
 
-    ${buildActiveQueuePanel({ activeQueue, studentCourseNames, instructorAccess, queueView })}
+    ${buildActiveQueuePanel({ activeQueue, studentCourseNames, instructorAccess, queueView, staffView })}
 
     <div class="panel">
       <h2>Completed today</h2>
@@ -1180,7 +1245,7 @@ app.get("/auth/logout", (req, res) => {
 
 app.post("/session/role", requireAuth, (req, res) => {
   const role = req.body.role === "instructor" ? "instructor" : "student";
-  const allowedByIdentity = Boolean(req.user?.canSwitchRoles);
+  const allowedByIdentity = Boolean(req.user?.canSwitchRoles) || isAdministrator(req.user);
   const allowedByKey = matchesRoleAccessKey(role, req.body.accessKey);
 
   if (!allowedByIdentity && !allowedByKey) {
@@ -1337,6 +1402,7 @@ app.get("/instructor", requireInstructorAccess, async (req, res, next) => {
   try {
     const instructorAccess = req.instructorAccess;
     const queueView = normalizeQueueView(req.query.queueView);
+    const staffView = normalizeStaffView(req.query.staffView, instructorAccess);
     const [studentCourseName, studentCourseNames] = await Promise.all([
       getStudentCourseName(),
       getStudentCourseNames()
@@ -1367,6 +1433,7 @@ app.get("/instructor", requireInstructorAccess, async (req, res, next) => {
         allowedStudentCounts,
         allowedStudentsByCourseMap: allowedStudentsByCourse(allowedStudents),
         queueView,
+        staffView,
         notice: req.query.notice,
         error: req.query.error
       })

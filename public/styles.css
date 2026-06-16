@@ -278,13 +278,75 @@ h3 {
   border-top: 1px solid rgba(16, 37, 66, 0.08);
 }
 
-.course-admin-card:first-child {
+.course-admin-card:first-child,
+.queue-course-section:first-child {
   border-top: 0;
   padding-top: 0;
 }
 
 .course-admin-card h3 {
   margin: 0;
+}
+
+.collapsible-course {
+  min-width: 0;
+}
+
+.collapsible-course > summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 0.75rem;
+  align-items: center;
+  min-height: 3rem;
+  padding: 0.75rem;
+  border: 1px solid rgba(16, 37, 66, 0.1);
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, rgba(248, 250, 252, 0.98), rgba(238, 244, 251, 0.82));
+  cursor: pointer;
+  list-style: none;
+}
+
+.collapsible-course > summary::-webkit-details-marker {
+  display: none;
+}
+
+.collapsible-course > summary::after {
+  content: "+";
+  display: grid;
+  width: 1.65rem;
+  height: 1.65rem;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.1);
+  color: var(--accent-deep);
+  font-weight: 900;
+}
+
+.collapsible-course[open] > summary::after {
+  content: "−";
+}
+
+.summary-title,
+.summary-meta {
+  min-width: 0;
+}
+
+.summary-title {
+  color: var(--ink);
+  font-weight: 850;
+}
+
+.summary-meta {
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-align: right;
+}
+
+.collapsible-body {
+  display: grid;
+  gap: 0.85rem;
+  padding-top: 0.85rem;
 }
 
 .ta-form {
@@ -306,6 +368,7 @@ h3 {
 
 .view-toggle {
   display: inline-flex;
+  align-items: center;
   gap: 0.25rem;
   padding: 0.25rem;
   border: 1px solid rgba(16, 37, 66, 0.14);
@@ -313,18 +376,37 @@ h3 {
   background: #fffdf8;
 }
 
-.view-toggle a {
+.view-toggle form {
+  margin: 0;
+}
+
+.view-toggle a,
+.view-toggle button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.15rem;
+  border: 0;
   border-radius: 999px;
+  background: transparent;
   color: var(--ink);
+  font: inherit;
+  font-weight: 650;
   padding: 0.45rem 0.75rem;
   text-decoration: none;
   white-space: nowrap;
+  cursor: pointer;
 }
 
-.view-toggle a.active {
+.view-toggle a.active,
+.view-toggle button.active {
   background: rgba(79, 134, 198, 0.14);
   color: var(--accent-deep);
   font-weight: 700;
+}
+
+.staff-view-toggle {
+  flex-wrap: wrap;
+  border-radius: var(--radius);
 }
 
 .course-queue-stack {
@@ -337,11 +419,6 @@ h3 {
   gap: 0.6rem;
   padding-top: 1rem;
   border-top: 1px solid rgba(16, 37, 66, 0.08);
-}
-
-.queue-course-section:first-child {
-  padding-top: 0;
-  border-top: 0;
 }
 
 .stack-form {
