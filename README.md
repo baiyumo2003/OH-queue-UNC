@@ -2,6 +2,8 @@
 
 A small queue web application for UNC office hours or help sessions.
 
+Staff user guide: [Professor and TA User Manual](docs/instructor-ta-manual.md)
+
 Features:
 
 - Students sign in with UNC SSO and join the queue.
