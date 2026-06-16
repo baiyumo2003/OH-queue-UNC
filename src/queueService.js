@@ -126,18 +126,33 @@ async function cancelEntry(entryId, courseNames) {
 
 async function getDashboardStats(courseNames) {
   const courseFilter = normalizeCourseFilter(courseNames);
-  const [summaryResult, completedResult] = await Promise.all([
+  const [summaryResult, courseStatsResult, completedResult] = await Promise.all([
     query(`
       SELECT
         COUNT(*) FILTER (
           WHERE completed_at IS NULL AND cancelled_at IS NULL
         )::INT AS waiting_now,
+        COUNT(DISTINCT course_context) FILTER (
+          WHERE completed_at IS NULL AND cancelled_at IS NULL
+        )::INT AS active_courses_now,
         COUNT(*) FILTER (
           WHERE completed_at >= date_trunc('day', NOW())
         )::INT AS helped_today,
         COUNT(*) FILTER (
           WHERE cancelled_at >= date_trunc('day', NOW())
         )::INT AS left_today,
+        COALESCE(
+          ROUND(AVG(EXTRACT(EPOCH FROM (NOW() - joined_at))) FILTER (
+            WHERE completed_at IS NULL AND cancelled_at IS NULL
+          )),
+          0
+        )::INT AS avg_wait_seconds_now,
+        COALESCE(
+          MAX(EXTRACT(EPOCH FROM (NOW() - joined_at))) FILTER (
+            WHERE completed_at IS NULL AND cancelled_at IS NULL
+          ),
+          0
+        )::INT AS longest_wait_seconds_now,
         COALESCE(
           ROUND(AVG(EXTRACT(EPOCH FROM (completed_at - joined_at))) FILTER (
             WHERE completed_at >= date_trunc('day', NOW())
@@ -152,6 +167,41 @@ async function getDashboardStats(courseNames) {
         )::INT AS longest_wait_seconds_today
       FROM queue_entries
       WHERE $1::text[] IS NULL OR course_context = ANY($1::text[]);
+    `, [courseFilter]),
+    query(`
+      SELECT
+        course_context,
+        COUNT(*) FILTER (
+          WHERE completed_at IS NULL AND cancelled_at IS NULL
+        )::INT AS waiting_now,
+        COUNT(*) FILTER (
+          WHERE completed_at >= date_trunc('day', NOW())
+        )::INT AS helped_today,
+        COUNT(*) FILTER (
+          WHERE cancelled_at >= date_trunc('day', NOW())
+        )::INT AS left_today,
+        COALESCE(
+          ROUND(AVG(EXTRACT(EPOCH FROM (NOW() - joined_at))) FILTER (
+            WHERE completed_at IS NULL AND cancelled_at IS NULL
+          )),
+          0
+        )::INT AS avg_wait_seconds_now,
+        COALESCE(
+          MAX(EXTRACT(EPOCH FROM (NOW() - joined_at))) FILTER (
+            WHERE completed_at IS NULL AND cancelled_at IS NULL
+          ),
+          0
+        )::INT AS longest_wait_seconds_now,
+        COALESCE(
+          ROUND(AVG(EXTRACT(EPOCH FROM (completed_at - joined_at))) FILTER (
+            WHERE completed_at >= date_trunc('day', NOW())
+          )),
+          0
+        )::INT AS avg_wait_seconds_today
+      FROM queue_entries
+      WHERE $1::text[] IS NULL OR course_context = ANY($1::text[])
+      GROUP BY course_context
+      ORDER BY course_context ASC;
     `, [courseFilter]),
     query(`
       SELECT
@@ -173,6 +223,7 @@ async function getDashboardStats(courseNames) {
 
   return {
     summary: summaryResult.rows[0],
+    courseStats: courseStatsResult.rows,
     completedToday: completedResult.rows
   };
 }

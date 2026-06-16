@@ -178,6 +178,22 @@ function renderMeetingLocation(location) {
   return escapeHtml(value);
 }
 
+function icon(name) {
+  const icons = {
+    activity: '<path d="M3 12h4l3 7 4-14 3 7h4"></path>',
+    book: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5z"></path>',
+    check: '<path d="M20 6 9 17l-5-5"></path>',
+    clock: '<circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path>',
+    layers: '<path d="m12 2 9 5-9 5-9-5 9-5z"></path><path d="m3 12 9 5 9-5"></path><path d="m3 17 9 5 9-5"></path>',
+    mail: '<path d="M4 6h16v12H4z"></path><path d="m4 7 8 6 8-6"></path>',
+    timer: '<path d="M10 2h4"></path><path d="M12 14l3-3"></path><circle cx="12" cy="14" r="8"></circle>',
+    user: '<circle cx="12" cy="8" r="4"></circle><path d="M4 22c1.5-4 4.5-6 8-6s6.5 2 8 6"></path>',
+    x: '<path d="M18 6 6 18"></path><path d="m6 6 12 12"></path>'
+  };
+  const body = icons[name] || icons.activity;
+  return `<svg class="icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`;
+}
+
 function renderLayout({ title, body, notice = "", error = "" }) {
   return `<!DOCTYPE html>
   <html lang="en">
@@ -539,10 +555,10 @@ function buildActiveQueueRows(entries, startIndex = 0) {
           <td>${formatDuration(entry.wait_seconds)}</td>
           <td class="action-cell">
             <form method="post" action="/instructor/entries/${entry.id}/complete">
-              <button class="primary-button compact-button" type="submit">Mark helped</button>
+              <button class="primary-button compact-button" type="submit">${icon("check")} Mark helped</button>
             </form>
             <form method="post" action="/instructor/entries/${entry.id}/cancel">
-              <button class="ghost-button compact-button" type="submit">Remove</button>
+              <button class="ghost-button compact-button" type="submit">${icon("x")} Remove</button>
             </form>
           </td>
         </tr>
@@ -632,6 +648,127 @@ function buildActiveQueuePanel({ activeQueue, studentCourseNames, instructorAcce
   `;
 }
 
+function numberValue(value) {
+  return Number(value || 0);
+}
+
+function formatStatDuration(value) {
+  const seconds = numberValue(value);
+  return seconds > 0 ? formatDuration(seconds) : "0m";
+}
+
+function buildMetricCard({ detail, iconName, label, tone = "", value }) {
+  return `
+    <div class="stat-card ${tone}">
+      <span class="stat-icon">${icon(iconName)}</span>
+      <span class="stat-label">${escapeHtml(label)}</span>
+      <span class="stat-value">${escapeHtml(String(value))}</span>
+      ${detail ? `<span class="stat-detail">${escapeHtml(detail)}</span>` : ""}
+    </div>
+  `;
+}
+
+function buildDashboardStatsPanel(dashboard) {
+  const summary = dashboard.summary || {};
+  return `
+    <div class="stat-grid dashboard-stat-grid">
+      ${buildMetricCard({
+        detail: `${numberValue(summary.active_courses_now)} active course${numberValue(summary.active_courses_now) === 1 ? "" : "s"}`,
+        iconName: "user",
+        label: "Waiting now",
+        tone: "stat-accent",
+        value: numberValue(summary.waiting_now)
+      })}
+      ${buildMetricCard({
+        detail: "current active queue",
+        iconName: "clock",
+        label: "Avg active wait",
+        value: formatStatDuration(summary.avg_wait_seconds_now)
+      })}
+      ${buildMetricCard({
+        detail: "current active queue",
+        iconName: "timer",
+        label: "Longest active wait",
+        tone: numberValue(summary.longest_wait_seconds_now) >= 1800 ? "stat-warning" : "",
+        value: formatStatDuration(summary.longest_wait_seconds_now)
+      })}
+      ${buildMetricCard({
+        detail: `${numberValue(summary.left_today)} left today`,
+        iconName: "check",
+        label: "Helped today",
+        tone: "stat-success",
+        value: numberValue(summary.helped_today)
+      })}
+      ${buildMetricCard({
+        detail: "completed visits",
+        iconName: "activity",
+        label: "Avg helped wait",
+        value: formatStatDuration(summary.avg_wait_seconds_today)
+      })}
+      ${buildMetricCard({
+        detail: "completed visits",
+        iconName: "layers",
+        label: "Longest helped wait",
+        value: formatStatDuration(summary.longest_wait_seconds_today)
+      })}
+    </div>
+  `;
+}
+
+function buildCourseStatsPanel({ dashboard, studentCourseNames, instructorAccess }) {
+  const courseOrder = getInstructorCourseOrder([], studentCourseNames, instructorAccess);
+  const statsByCourse = new Map((dashboard.courseStats || []).map((row) => [row.course_context, row]));
+  const rows = courseOrder.map((courseName) => {
+    const stats = statsByCourse.get(courseName) || {};
+    return {
+      courseName,
+      avgWaitNow: numberValue(stats.avg_wait_seconds_now),
+      avgWaitToday: numberValue(stats.avg_wait_seconds_today),
+      helpedToday: numberValue(stats.helped_today),
+      leftToday: numberValue(stats.left_today),
+      longestWaitNow: numberValue(stats.longest_wait_seconds_now),
+      waitingNow: numberValue(stats.waiting_now)
+    };
+  });
+
+  if (rows.length === 0) {
+    return "";
+  }
+
+  return `
+    <div class="panel">
+      <div class="panel-heading-row">
+        <div>
+          <p class="section-kicker">Course snapshot</p>
+          <h2>Queue by course</h2>
+        </div>
+      </div>
+      <div class="course-metrics-grid">
+        ${rows
+          .map(
+            (stats) => `
+              <article class="course-metric-card">
+                <div class="course-metric-heading">
+                  <span class="course-icon">${icon("book")}</span>
+                  <h3>${escapeHtml(stats.courseName)}</h3>
+                </div>
+                <div class="course-metric-values">
+                  <span><strong>${stats.waitingNow}</strong> waiting</span>
+                  <span><strong>${formatStatDuration(stats.avgWaitNow)}</strong> avg now</span>
+                  <span><strong>${formatStatDuration(stats.longestWaitNow)}</strong> longest now</span>
+                  <span><strong>${stats.helpedToday}</strong> helped</span>
+                  <span><strong>${stats.leftToday}</strong> left</span>
+                  <span><strong>${formatStatDuration(stats.avgWaitToday)}</strong> avg helped</span>
+                </div>
+              </article>
+            `
+          )
+          .join("")}
+      </div>
+    </div>
+  `;
+}
+
 function renderInstructorPage({
   user,
   activeQueue,
@@ -645,6 +782,8 @@ function renderInstructorPage({
   error
 }) {
   const title = buildQueueTitle(studentCourseNames);
+  const visibleCourses = getInstructorCourseOrder(activeQueue, studentCourseNames, instructorAccess);
+  const roleLabel = instructorAccess.isAdmin ? "Role switcher" : instructorAccess.isTa ? "TA" : "Instructor";
 
   const completedRows =
     dashboard.completedToday.length === 0
@@ -665,9 +804,17 @@ function renderInstructorPage({
           .join("");
 
   const body = `
-    <div class="panel">
-      <h2>Instructor dashboard</h2>
-      <p>Signed in as ${escapeHtml(user.displayName)}.</p>
+    <div class="panel dashboard-hero">
+      <div>
+        <p class="section-kicker">Instructor dashboard</p>
+        <h2>Queue control center</h2>
+        <p>Signed in as <strong>${escapeHtml(user.displayName)}</strong>.</p>
+      </div>
+      <div class="dashboard-chips">
+        <span class="chip">${icon("user")} ${escapeHtml(roleLabel)}</span>
+        <span class="chip">${icon("book")} ${visibleCourses.length} course${visibleCourses.length === 1 ? "" : "s"}</span>
+        <span class="chip">${icon("clock")} ${numberValue(dashboard.summary.waiting_now)} waiting</span>
+      </div>
       ${
         user.baseRole && user.baseRole !== user.role
           ? `<p><strong>Role override active:</strong> base role is ${escapeHtml(user.baseRole)}.</p>`
@@ -680,24 +827,8 @@ function renderInstructorPage({
     ${instructorAccess.isAdmin ? buildCourseSettingsPanel(studentCourseName) : ""}
     ${instructorAccess.isAdmin ? buildTaManagementPanel(studentCourseNames, courseTasByCourse) : ""}
 
-    <div class="stat-grid">
-      <div class="stat-card">
-        <span class="stat-label">Waiting now</span>
-        <span class="stat-value">${dashboard.summary.waiting_now}</span>
-      </div>
-      <div class="stat-card">
-        <span class="stat-label">Helped today</span>
-        <span class="stat-value">${dashboard.summary.helped_today}</span>
-      </div>
-      <div class="stat-card">
-        <span class="stat-label">Avg wait today</span>
-        <span class="stat-value">${formatDuration(dashboard.summary.avg_wait_seconds_today)}</span>
-      </div>
-      <div class="stat-card">
-        <span class="stat-label">Longest wait today</span>
-        <span class="stat-value">${formatDuration(dashboard.summary.longest_wait_seconds_today)}</span>
-      </div>
-    </div>
+    ${buildDashboardStatsPanel(dashboard)}
+    ${buildCourseStatsPanel({ dashboard, studentCourseNames, instructorAccess })}
 
     ${buildActiveQueuePanel({ activeQueue, studentCourseNames, instructorAccess, queueView })}
 
