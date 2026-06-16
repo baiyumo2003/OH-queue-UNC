@@ -1,138 +1,287 @@
-# UNC Student Queue
+# UNC STOR Office Hours Queue
 
-A small queue web application for UNC office hours or help sessions.
+A lightweight web app for running UNC office hours queues across one or more courses.
 
-Staff user guide: [Professor and TA User Manual](docs/instructor-ta-manual.md)
+Students sign in with UNC SSO, choose a course, describe what they need help with, and join the queue. Professors, instructors, and TAs use a staff dashboard to view the live queue, manage entries, review wait-time statistics, and configure course-specific TA access.
 
-Features:
+Staff guide: [Professor and TA User Manual](docs/instructor-ta-manual.md)
 
-- Students sign in with UNC SSO and join the queue.
-- Students can only see their own position, wait time, and how many people are ahead of them.
-- Instructors get a separate dashboard with the full live queue and daily wait-time stats.
-- Each queue request includes a location that must be either `In person` or a UNC Zoom link.
-- Instructors can update the course choices shown to students from the instructor dashboard.
-- Instructors can receive an email when a student joins the queue.
-- Queue data is stored in PostgreSQL so it survives pod restarts.
+## Features
 
-## Stack
+- UNC SSO/Shibboleth header-based authentication.
+- Student queue form with course selection, help topic, and location.
+- Students only see their own queue position and wait information.
+- One active queue entry per student.
+- Instructor dashboard with live queue management.
+- Dashboard views for a unified join-time queue or course-separated queues.
+- Course-level TA access.
+- Role switchers can manage course names and TA assignments.
+- Course-specific email notification settings for TAs.
+- Queue join emails through SMTP, including UNC relay support.
+- Daily and live queue statistics, including per-course wait metrics.
+- PostgreSQL persistence across pod restarts.
+- Responsive UI with UNC/STOR branding.
 
-- Node.js + Express
+## User Roles
+
+### Student
+
+Students can:
+
+- Sign in through UNC SSO.
+- Join the queue for one configured course.
+- Enter `In person` or a valid UNC Zoom URL as their location.
+- See their own position, wait time, and number of people ahead.
+- Leave the queue before they are helped.
+
+Students cannot see other students or the full queue.
+
+### TA
+
+TAs are assigned to one or more courses from the instructor dashboard. A TA can:
+
+- View only their assigned course queues.
+- Switch between **Joined time** and **By course** queue views.
+- Mark students helped.
+- Remove abandoned or mistaken entries.
+- Receive queue-join emails for assigned courses when enabled.
+
+### Instructor
+
+Instructors listed in `INSTRUCTOR_IDS` can access the instructor dashboard and manage the queue.
+
+### Role Switcher / Professor
+
+Users listed in `ROLE_SWITCH_USERS` can switch into instructor view and manage:
+
+- Student-facing course choices.
+- Course-specific TA assignments.
+- Whether each TA receives email notifications for each course.
+
+## Tech Stack
+
+- Node.js 20+
+- Express
 - PostgreSQL
-- UNC SSO via trusted reverse-proxy headers from your CloudApps/Shibboleth setup
+- Nodemailer
+- Docker
+- UNC CloudApps / OpenShift
+- UNC Shibboleth Proxy for SSO
 
-## What the app expects from UNC SSO
+## Repository Layout
 
-This app does not implement the SAML flow itself. It expects CloudApps/Shibboleth to authenticate the user and forward identity headers to the Node app.
+```text
+.
+├── docs/
+│   └── instructor-ta-manual.md
+├── public/
+│   ├── styles.css
+│   └── unc-stor-logo.png
+├── src/
+│   ├── auth.js
+│   ├── db.js
+│   ├── emailService.js
+│   ├── queueService.js
+│   ├── server.js
+│   ├── settingsService.js
+│   ├── taService.js
+│   └── utils.js
+├── test/
+├── Dockerfile
+├── package.json
+└── README.md
+```
 
-Primary UNC username header:
+## Local Development
 
-- `HTTP_UID`
+### 1. Install dependencies
 
-Other supported fallbacks:
+```bash
+npm install
+```
 
-- `REMOTE_USER` or `X-Remote-User`
-- `mail` or `X-Forwarded-Email`
-- `displayName`, `givenName`, `sn`, or `cn`, including Shibboleth-style `HTTP_`-prefixed versions such as `HTTP_DISPLAYNAME`, `HTTP_GIVENNAME`, `HTTP_SN`, and `HTTP_MAIL`
+### 2. Start PostgreSQL
 
-Per the UNC KB article, the separate Shibboleth proxy pod exposes the signed-in username through the `HTTP_UID` HTTP header. This app now treats `HTTP_UID` as the preferred source for the ONYEN/user id and falls back to the older generic headers only if needed.
-
-## Environment variables
-
-Required:
-
-- `DATABASE_URL`
-
-Recommended:
-
-- `PORT` default: `3000`
-- `INSTRUCTOR_IDS` comma-separated ONYENs or email addresses allowed into `/instructor`
-- `TRUST_PROXY_AUTH=true` in CloudApps when SSO headers are being forwarded
-- `APP_BASE_URL` public route base URL, such as `https://student-queue-youronyen.apps.unc.edu`
-- `STUDENT_COURSE_NAME` initial course choices shown to students before instructors change them in the dashboard, separated by commas or spaces
-
-Optional:
-
-- `ALLOW_DEV_AUTH=true` for local development only
-- `TEST_LOGIN_ENABLED=true` to expose one-click test student/instructor accounts
-- `ROLE_SWITCH_USERS` comma-separated ONYENs or email addresses allowed to switch between student and instructor views
-- `STUDENT_VIEW_KEY` and `INSTRUCTOR_VIEW_KEY` to allow authenticated users to switch views using environment-configured access keys
-- `EMAIL_NOTIFICATIONS_ENABLED=true` to send an email whenever a student joins the queue
-- `QUEUE_NOTIFICATION_RECIPIENTS` comma-separated email recipients for queue join notifications
-- `MAIL_FROM` sender address for queue join notifications
-- `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, and `SMTP_PASS` for outbound SMTP
-- `SSO_LOGIN_URL` override if your SSO article has you use a custom login URL
-- `SSO_LOGOUT_URL` override if your SSO article has you use a custom logout URL
-
-If `QUEUE_NOTIFICATION_RECIPIENTS` is not set, the app falls back to `INSTRUCTOR_IDS` and treats bare ONYENs as `<onyen>@unc.edu`.
-
-When `TEST_LOGIN_ENABLED=true`, these direct URLs are available:
-
-- `/test-login/student`
-- `/test-login/instructor`
-
-## Local development
-
-1. Start PostgreSQL locally.
-2. Create a database and set `DATABASE_URL`.
-3. Copy `.env.example` to your own shell environment.
-4. Install dependencies:
-
-   ```bash
-   npm install
-   ```
-
-5. Run the app:
-
-   ```bash
-   npm run dev
-   ```
-
-6. Open `http://localhost:3000`.
-7. Use the built-in dev login form while `ALLOW_DEV_AUTH=true`.
-
-## Deploying to UNC CloudApps / OKD
-
-These steps assume:
-
-- You already signed up for Carolina CloudApps: <https://cloudapps.unc.edu/>
-- You can log into the UNC OKD console.
-- You will follow UNC's SSO/Shibboleth article here for the exact UNC-specific SSO resource creation details: <https://tdx.unc.edu/TDClient/33/Portal/KB/ArticleDet?ID=150>
-
-### 1. Log into OKD
-
-1. Open the UNC OKD console referenced by CloudApps.
-2. Copy your `oc login` command from the console.
-3. Run it locally.
-4. Switch to your project.
+Create a local database and set `DATABASE_URL`.
 
 Example:
+
+```bash
+createdb student_queue
+export DATABASE_URL='postgresql://localhost:5432/student_queue'
+```
+
+### 3. Configure local environment
+
+Use `.env.example` as a reference. This project does not automatically load `.env`; export variables in your shell or use your preferred environment loader.
+
+Useful local settings:
+
+```bash
+export PORT=3000
+export DATABASE_URL='postgresql://localhost:5432/student_queue'
+export TRUST_PROXY_AUTH=false
+export ALLOW_DEV_AUTH=true
+export TEST_LOGIN_ENABLED=true
+export INSTRUCTOR_IDS='testinstructor'
+export ROLE_SWITCH_USERS='testinstructor'
+export STUDENT_COURSE_NAME='STOR113, STOR118'
+export APP_BASE_URL='http://localhost:3000'
+```
+
+### 4. Run the app
+
+```bash
+npm run dev
+```
+
+Open:
+
+```text
+http://localhost:3000
+```
+
+When `ALLOW_DEV_AUTH=true`, use the dev login form. When `TEST_LOGIN_ENABLED=true`, these test routes are also available:
+
+```text
+/test-login/student
+/test-login/instructor
+```
+
+### 5. Run tests
+
+```bash
+npm test
+```
+
+## Environment Variables
+
+### Required
+
+| Variable | Description |
+| --- | --- |
+| `DATABASE_URL` | PostgreSQL connection string. |
+
+### Core App Settings
+
+| Variable | Description |
+| --- | --- |
+| `PORT` | Port for the Node server. Defaults to `3000`; CloudApps commonly uses `8080` inside the container. |
+| `APP_BASE_URL` | Public base URL used for SSO redirects and email dashboard links. |
+| `TRUST_PROXY_AUTH` | Set to `true` in CloudApps when Shibboleth headers are trusted. |
+| `INSTRUCTOR_IDS` | Comma-separated ONYENs or emails with instructor dashboard access. |
+| `ROLE_SWITCH_USERS` | Comma-separated ONYENs or emails that can switch roles and manage courses/TAs. |
+| `STUDENT_COURSE_NAME` | Initial course list before it is changed from the dashboard. Courses may be separated by commas or spaces. |
+| `DATABASE_SSL` | Set to `true` if your PostgreSQL connection requires SSL. |
+
+### Development and Testing
+
+| Variable | Description |
+| --- | --- |
+| `ALLOW_DEV_AUTH` | Enables the local dev login form. Do not enable in production. |
+| `TEST_LOGIN_ENABLED` | Enables `/test-login/student` and `/test-login/instructor`. Do not enable in production. |
+| `TEST_STUDENT_ONYEN` | Test student ONYEN. |
+| `TEST_STUDENT_NAME` | Test student display name. |
+| `TEST_STUDENT_EMAIL` | Test student email. |
+| `TEST_INSTRUCTOR_ONYEN` | Test instructor ONYEN. |
+| `TEST_INSTRUCTOR_NAME` | Test instructor display name. |
+| `TEST_INSTRUCTOR_EMAIL` | Test instructor email. |
+| `STUDENT_VIEW_KEY` | Optional access key for switching to student view. |
+| `INSTRUCTOR_VIEW_KEY` | Optional access key for switching to instructor view. |
+
+### Email Notifications
+
+| Variable | Description |
+| --- | --- |
+| `EMAIL_NOTIFICATIONS_ENABLED` | Set to `true` to send queue-join emails. |
+| `QUEUE_NOTIFICATION_RECIPIENTS` | Comma-separated global notification recipients. |
+| `INSTRUCTOR_NOTIFICATION_EMAILS` | Legacy fallback for global notification recipients. |
+| `INSTRUCTOR_EMAILS` | Legacy fallback for global notification recipients. |
+| `MAIL_FROM` | Sender shown on notification emails. |
+| `SMTP_HOST` | SMTP server hostname, for example `relay.unc.edu`. |
+| `SMTP_PORT` | SMTP port. Defaults to `587`. |
+| `SMTP_SECURE` | Set to `true` for TLS-on-connect SMTP. |
+| `SMTP_USER` | Optional SMTP username. |
+| `SMTP_PASS` | Optional SMTP password. |
+
+If `QUEUE_NOTIFICATION_RECIPIENTS`, `INSTRUCTOR_NOTIFICATION_EMAILS`, and `INSTRUCTOR_EMAILS` are all unset, the app falls back to `INSTRUCTOR_IDS` and treats bare ONYENs as `<onyen>@unc.edu`.
+
+Course-specific TA notification emails are managed inside the instructor dashboard.
+
+### SSO Overrides
+
+| Variable | Description |
+| --- | --- |
+| `SSO_LOGIN_URL` | Optional explicit login URL. |
+| `SSO_LOGOUT_URL` | Optional explicit logout URL. |
+
+## Authentication and Shibboleth Headers
+
+The app does not implement SAML directly. In production, UNC CloudApps/Shibboleth authenticates users and forwards identity headers to the Node app.
+
+The preferred username header is:
+
+```text
+HTTP_UID
+```
+
+Supported identity fallbacks include:
+
+- `REMOTE_USER`
+- `X-Remote-User`
+- `mail`
+- `X-Forwarded-Email`
+- `displayName`
+- `givenName`
+- `sn`
+- `cn`
+- Shibboleth-style `HTTP_`-prefixed variants such as `HTTP_DISPLAYNAME`, `HTTP_GIVENNAME`, `HTTP_SN`, and `HTTP_MAIL`
+
+For formal student names, ask UNC ITS/Shibboleth to release display-name attributes such as `displayName`, or `givenName` and `sn`.
+
+## Database Tables
+
+The app creates and updates its own tables at startup:
+
+- `queue_entries`: student queue entries.
+- `app_settings`: dashboard-managed settings such as course choices.
+- `course_tas`: course-specific TA assignments and email notification preferences.
+
+Important constraints:
+
+- One active queue entry per student.
+- Unique TA assignment per course and TA identifier.
+
+## CloudApps / OpenShift Deployment
+
+These steps assume you have access to UNC CloudApps and the `oc` CLI.
+
+### 1. Log in and select your project
 
 ```bash
 oc login --token=... --server=...
 oc project <your-project>
 ```
 
-### 2. Create PostgreSQL in your project
-
-Create a PostgreSQL app inside the same CloudApps project:
+### 2. Create PostgreSQL
 
 ```bash
 oc new-app postgresql:15-el9 \
   --name=student-queue-db \
   -e POSTGRESQL_USER=queueuser \
-  -e POSTGRESQL_PASSWORD='replace-with-strong-password' \
+  -e POSTGRESQL_PASSWORD='replace-with-a-strong-password' \
   -e POSTGRESQL_DATABASE=student_queue
 ```
 
-Wait for the database pod to become ready:
+Wait for the database pod:
 
 ```bash
 oc get pods -w
 ```
 
-### 3. Create the queue application
+### 3. Create the application
 
-From this repository directory:
+From this repository:
 
 ```bash
 oc new-app . --name=student-queue --strategy=docker
@@ -140,141 +289,143 @@ oc new-app . --name=student-queue --strategy=docker
 
 This uses the included `Dockerfile`.
 
-### 4. Expose a public HTTPS route
+### 4. Configure the deployment
 
-```bash
-oc create route edge --service=student-queue
-oc get route student-queue
-```
-
-Record the public hostname shown by `oc get route`.
-
-### 5. Set the app environment variables
-
-Replace `<route-host>` with your route host from the previous step:
+Example:
 
 ```bash
 oc set env deployment/student-queue \
-  DATABASE_URL='postgresql://queueuser:replace-with-strong-password@student-queue-db:5432/student_queue' \
+  DATABASE_URL='postgresql://queueuser:replace-with-a-strong-password@student-queue-db:5432/student_queue' \
   TRUST_PROXY_AUTH=true \
-  INSTRUCTOR_IDS='youronyen,yourta' \
-  STUDENT_COURSE_NAME='COMP423, COMP523' \
-  APP_BASE_URL='https://<route-host>' \
-  ALLOW_DEV_AUTH=false
+  ALLOW_DEV_AUTH=false \
+  TEST_LOGIN_ENABLED=false \
+  INSTRUCTOR_IDS='profonyen' \
+  ROLE_SWITCH_USERS='profonyen' \
+  STUDENT_COURSE_NAME='STOR113, STOR118' \
+  APP_BASE_URL='https://<public-route-host>'
 ```
 
-To enable email notifications when students join the queue, set SMTP environment variables:
+### 5. Enable email notifications
+
+UNC relay example:
 
 ```bash
 oc set env deployment/student-queue \
   EMAIL_NOTIFICATIONS_ENABLED=true \
-  QUEUE_NOTIFICATION_RECIPIENTS='youronyen@unc.edu,yourta@unc.edu' \
-  MAIL_FROM='Office Hours Queue <youronyen@unc.edu>' \
+  QUEUE_NOTIFICATION_RECIPIENTS='professor@unc.edu' \
+  MAIL_FROM='Office Hours Queue <no-reply@unc.edu>' \
   SMTP_HOST='relay.unc.edu' \
   SMTP_PORT='587' \
   SMTP_SECURE=false
 ```
 
-UNC's documented mail relay can use `relay.unc.edu` on port `25` or `587` without SMTP authentication from allowed campus networks. If you use a different SMTP provider, also set `SMTP_USER` and `SMTP_PASS`.
-
-If UNC's SSO article tells you to use a custom login or logout URL, also set:
-
-```bash
-oc set env deployment/student-queue \
-  SSO_LOGIN_URL='https://<route-host>/Shibboleth.sso/Login?target=https%3A%2F%2F<route-host>%2F' \
-  SSO_LOGOUT_URL='https://<route-host>/Shibboleth.sso/Logout?return=https%3A%2F%2F<route-host>%2F'
-```
+Course-specific TA recipients can then be configured from the instructor dashboard.
 
 ### 6. Add the UNC Shibboleth Proxy
 
-The KB article’s visible steps show this flow in CloudApps:
+Follow UNC CloudApps Shibboleth documentation and protect the queue app route with the UNC Shibboleth Proxy.
 
-1. Switch to the `Administrator` perspective.
-2. Go to `Networking`, then `Services`.
-3. Find and note the service name for your application.
-4. Switch to the `Developer` perspective.
-5. Open `+Add`.
-6. Choose `All services` from the Developer Catalog.
-7. Search for `shibboleth`.
-8. Choose `UNC Shibboleth Proxy`.
-9. Click `Instantiate Template`.
-10. Complete the template form.
+At a high level:
 
-From the KB page, the visible form fields include:
+1. Identify the service for `student-queue`.
+2. Add the `UNC Shibboleth Proxy` template from the CloudApps catalog.
+3. Point the proxy to the queue service.
+4. Ensure the public route goes through the Shibboleth proxy.
+5. Confirm Shibboleth forwards `HTTP_UID`.
 
-- `Application Name`: name of the Shibboleth pod to create, default `shibboleth`
-- `Onyen`: required; used to submit a ticket to ITS Identity Management to provision the Shibboleth Service Provider
+If the route host changes later, update both:
 
-Use the service name from step 3 when the template asks which application/service should be protected.
+- Shibboleth `APPLICATION_DOMAIN`
+- App `APP_BASE_URL`
 
-### 7. Match the app to the UNC header behavior
+If ITS requires a new Shibboleth ticket after a domain change, temporarily set `FORCE_TICKET=true` on the Shibboleth deployment, let it submit the ticket, then remove `FORCE_TICKET`.
 
-The KB page says that because the Shibboleth proxy is a separate pod, your application should read the username from the `HTTP_UID` HTTP header rather than relying on the CGI `REMOTE_USER` variable.
+### 7. Rebuild after code changes
 
-That is already how this app is now configured:
-
-1. `TRUST_PROXY_AUTH` must be `true`.
-2. The protected route should point users through the Shibboleth proxy.
-3. The Node app will read `HTTP_UID` as the primary ONYEN/user id.
-4. `INSTRUCTOR_IDS` should use ONYEN values that match `HTTP_UID`.
-
-### 8. If the protected domain changes later
-
-The KB page also shows that changing the domain on an existing Shibboleth deployment requires updating the Shibboleth deployment config:
-
-1. In `Administrator`, go to `Workloads`, then `Deployment Configs`.
-2. Open the Shibboleth deployment.
-3. Open the `Environment` tab.
-4. Change `APPLICATION_DOMAIN` to the new domain only, without `http://` or `https://`.
-5. Add `FORCE_TICKET=true`.
-6. Save and wait for the new pod.
-7. Remove `FORCE_TICKET`.
-8. Save again.
-
-In this app, update `APP_BASE_URL` at the same time so the Node app and the Shibboleth proxy use the same public hostname.
-
-### 9. Verify the deployment
-
-Open the route in a browser and verify:
-
-1. Unauthenticated access redirects to UNC login.
-2. After login, the app receives `HTTP_UID` and, when available, formal name headers such as `HTTP_DISPLAYNAME` or `HTTP_GIVENNAME`/`HTTP_SN`.
-3. A student account can join the queue.
-4. An instructor account listed in `INSTRUCTOR_IDS` can open `/instructor`.
-5. The instructor dashboard shows the student and a live waiting time.
-
-Useful commands:
+If the BuildConfig tracks the GitHub repository:
 
 ```bash
-oc get all
-oc logs deployment/student-queue
-oc logs deployment/student-queue-db
-oc describe route student-queue
+oc start-build student-queue --follow
 ```
 
-### 10. Update the deployment after code changes
-
-If you change the app and want CloudApps to rebuild:
+If you are using a binary/local source build:
 
 ```bash
 oc start-build student-queue --from-dir=. --follow
 ```
 
-If your project uses webhook-driven builds instead, wire that into GitHub Actions after the initial deployment.
+Then confirm rollout:
 
-## Instructor access model
+```bash
+oc rollout status deployment/student-queue
+oc logs deployment/student-queue --tail=100
+```
 
-Instructor access is controlled by `INSTRUCTOR_IDS`, and those values should match the ONYEN values UNC sends in `HTTP_UID`.
+## Staff Dashboard Workflow
 
-Examples:
+### Configure Courses
 
-- `INSTRUCTOR_IDS=abc123`
-- `INSTRUCTOR_IDS=abc123,def456`
-- `INSTRUCTOR_IDS=abc123,ta1@unc.edu,ta2@unc.edu`
+Role switchers can edit the course list in **Student course choices**.
 
-## Notes
+Courses may be separated by commas or spaces:
 
-- The app enforces one active queue entry per student.
-- The instructor dashboard shows active wait times and a completed-today table with recorded wait durations.
-- Data is stored in PostgreSQL, not in memory.
-- UNC CloudApps Shibboleth should provide the username in `HTTP_UID`; generic proxy headers are treated as fallback compatibility only.
+```text
+STOR113, STOR118, STOR666
+```
+
+### Add TAs
+
+Role switchers can add TAs under **Course TAs**. Each TA assignment includes:
+
+- Course name.
+- TA ONYEN or email.
+- Optional explicit TA email.
+- Checkbox for queue-join email notifications.
+
+TAs can be assigned to multiple courses.
+
+### Manage the Queue
+
+Staff can:
+
+- View active students.
+- Switch between **Joined time** and **By course** queue views.
+- Mark students helped.
+- Remove entries that should no longer be active.
+- Review completed visits for the day.
+- Review live and per-course statistics.
+
+## Useful Commands
+
+```bash
+npm test
+```
+
+```bash
+oc get pods
+oc get deployment student-queue
+oc logs deployment/student-queue --tail=100
+oc exec deployment/student-queue -- wget -qO- http://127.0.0.1:8080/healthz
+```
+
+Current app health endpoint:
+
+```text
+/healthz
+```
+
+## Known Operational Notes
+
+- Keep `ALLOW_DEV_AUTH=false` and `TEST_LOGIN_ENABLED=false` in production.
+- `ROLE_SWITCH_USERS` should be limited to trusted course administrators.
+- `INSTRUCTOR_IDS` grants broad instructor dashboard access.
+- TA access is best managed from the dashboard rather than environment variables.
+- The student-facing course list is stored in PostgreSQL after it is changed from the dashboard.
+- Course/TA assignments are stored in PostgreSQL.
+- Email delivery depends on SMTP configuration and UNC relay/network policy.
+
+## Related Documentation
+
+- [Professor and TA User Manual](docs/instructor-ta-manual.md)
+- UNC CloudApps documentation
+- UNC Shibboleth Proxy documentation
