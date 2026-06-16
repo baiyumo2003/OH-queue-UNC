@@ -1,12 +1,13 @@
 # Office Hours Queue: Professor and TA User Manual
 
-This guide explains how professors and TAs use the UNC STOR Office Hours Queue.
+This guide explains how administrators, professors, and TAs use the UNC STOR Office Hours Queue.
 
 ## Roles
 
-The app has two staff-facing roles:
+The app has three staff-facing roles:
 
-- **Professor**: can manage course names, add or remove TAs, decide whether each TA receives queue email notifications, and view all course queues.
+- **Administrator**: can manage course names, assign professors to courses, manage any course's TAs and roster, and export course data.
+- **Professor**: can add or remove TAs for assigned courses, decide whether each TA receives queue email notifications, manage assigned course rosters, and view assigned course queues.
 - **TA**: can view and manage only the courses assigned to them.
 
 Students only see their own queue position, wait time, and how many people are ahead of them.
@@ -18,9 +19,9 @@ Students only see their own queue position, wait time, and how many people are a
 3. After signing in, staff users should open the staff dashboard.
 4. If your account has role switching enabled, use the **Role switch** panel to enter staff view.
 
-If you cannot access the staff dashboard, your ONYEN may not be configured as a professor or TA.
+If you cannot access the staff dashboard, your ONYEN may not be configured as an administrator, professor, or TA.
 
-## Professor Workflow
+## Administrator Workflow
 
 ### Change Course Names
 
@@ -44,6 +45,29 @@ STOR113 STOR118 STOR666
 5. Click **Update course choices**.
 
 Students will see these courses in the course dropdown when joining the queue.
+
+### Assign a Professor to a Course
+
+1. Go to the staff dashboard.
+2. Find **Course professors**.
+3. Locate the course.
+4. Enter the professor's ONYEN or UNC email address.
+5. Optionally enter the professor's email address. If left blank, the app uses `<onyen>@unc.edu`.
+6. Click **Assign professor**.
+
+If an administrator changes the assigned professor for a course, previous TA assignments for that course are cleared.
+
+### Export Course Data
+
+1. Go to **Course professors**.
+2. Locate the course.
+3. Click **Export DB package**.
+
+The export downloads a JSON package containing the course's professor assignment, TA assignments, roster settings, allowed students, and queue entries.
+
+## Professor Workflow
+
+Professors can manage only the courses assigned to them by an administrator.
 
 ### Add a TA to a Course
 
@@ -69,6 +93,33 @@ After the TA is added, they can access the staff dashboard for that course.
 3. Click **Remove**.
 
 Removing a TA also removes their access to that course's staff queue view.
+
+### Manage Course Roster Access
+
+1. Go to **Course rosters**.
+2. Locate the course.
+3. Use **Only roster students can join** to decide whether the queue is restricted.
+4. Click **Save roster rule**.
+
+When roster restriction is off, any signed-in UNC student can join the course queue. When it is on, only students in the allowed-student list for that course can join.
+
+### Import Students from Canvas CSV
+
+1. Download a Canvas gradebook CSV for the course.
+2. Go to **Course rosters**.
+3. Choose the CSV file under **Import Canvas CSV**.
+4. Click **Import SIS Login IDs**.
+
+The app reads the `SIS Login ID` column as the student's ONYEN.
+
+### Manually Add an Allowed Student
+
+1. Go to **Course rosters**.
+2. Enter the student's ONYEN.
+3. Optionally enter the student's name and email.
+4. Click **Add allowed student**.
+
+Manual entries and imported entries both allow the student to join when roster restriction is enabled.
 
 ## TA Workflow
 

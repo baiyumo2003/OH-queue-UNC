@@ -46,6 +46,34 @@ async function initDb() {
     );
   `);
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS course_professors (
+      course_name TEXT PRIMARY KEY,
+      professor_identifier TEXT NOT NULL,
+      professor_email TEXT NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS course_roster_settings (
+      course_name TEXT PRIMARY KEY,
+      restrict_to_roster BOOLEAN NOT NULL DEFAULT false,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS course_allowed_students (
+      id BIGSERIAL PRIMARY KEY,
+      course_name TEXT NOT NULL,
+      student_identifier TEXT NOT NULL,
+      student_name TEXT,
+      student_email TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
+
   await pool.query(
     `
       INSERT INTO app_settings (key, value)
@@ -97,6 +125,21 @@ async function initDb() {
   await pool.query(`
     CREATE INDEX IF NOT EXISTS course_tas_identifier_idx
     ON course_tas (ta_identifier);
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS course_professors_identifier_idx
+    ON course_professors (professor_identifier);
+  `);
+
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS course_allowed_students_course_identifier_idx
+    ON course_allowed_students (course_name, student_identifier);
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS course_allowed_students_identifier_idx
+    ON course_allowed_students (student_identifier);
   `);
 }
 

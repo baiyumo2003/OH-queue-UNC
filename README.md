@@ -2,7 +2,7 @@
 
 A lightweight web app for running UNC office hours queues across one or more courses.
 
-Students sign in with UNC SSO, choose a course, describe what they need help with, and join the queue. Professors and TAs use a staff dashboard to view the live queue, manage entries, review wait-time statistics, and configure course-specific TA access.
+Students sign in with UNC SSO, choose a course, describe what they need help with, and join the queue. Administrators, professors, and TAs use a staff dashboard to view the live queue, manage entries, review wait-time statistics, and configure course-specific access.
 
 Staff guide: [Professor and TA User Manual](docs/professor-ta-manual.md)
 
@@ -14,9 +14,13 @@ Staff guide: [Professor and TA User Manual](docs/professor-ta-manual.md)
 - One active queue entry per student.
 - Staff dashboard with live queue management.
 - Dashboard views for a unified join-time queue or course-separated queues.
-- Course-level TA access.
-- Professors can manage course names and TA assignments.
+- Administrator-managed professor assignments.
+- Course-level professor and TA access.
+- Professors can manage TAs and rosters for their assigned courses.
 - Course-specific email notification settings for TAs.
+- Optional course roster restrictions using imported or manually entered ONYENs.
+- Canvas gradebook CSV import using the `SIS Login ID` column.
+- Administrator course database package export.
 - Queue join emails through SMTP, including UNC relay support.
 - Daily and live queue statistics, including per-course wait metrics.
 - PostgreSQL persistence across pod restarts.
@@ -36,6 +40,18 @@ Students can:
 
 Students cannot see other students or the full queue.
 
+### Administrator
+
+Administrators listed in `ADMINISTRATOR_IDS` can:
+
+- Update the student-facing course list.
+- Assign one professor to each course.
+- Change a course's professor.
+- Manage every course's TAs and allowed-student roster.
+- Export all database content for a course.
+
+Changing a course professor clears that course's existing TA assignments.
+
 ### TA
 
 TAs are assigned to one or more courses from the staff dashboard. A TA can:
@@ -48,13 +64,14 @@ TAs are assigned to one or more courses from the staff dashboard. A TA can:
 
 ### Professor
 
-Professors listed in `ROLE_SWITCH_USERS` can switch into staff view and manage:
+Professors assigned by an administrator can manage their own courses:
 
-- Student-facing course choices.
 - Course-specific TA assignments.
 - Whether each TA receives email notifications for each course.
+- Course roster restrictions.
+- Imported or manually entered allowed students.
 
-The legacy environment variable `INSTRUCTOR_IDS` can also grant broad staff dashboard access, but day-to-day course administration should use `ROLE_SWITCH_USERS` for professors and dashboard-managed TA assignments for TAs.
+The legacy environment variable `INSTRUCTOR_IDS` can also grant broad staff dashboard access, but day-to-day course administration should use `ADMINISTRATOR_IDS` for administrators and dashboard-managed professor/TA assignments for course staff.
 
 ## Tech Stack
 
@@ -121,8 +138,9 @@ export DATABASE_URL='postgresql://localhost:5432/student_queue'
 export TRUST_PROXY_AUTH=false
 export ALLOW_DEV_AUTH=true
 export TEST_LOGIN_ENABLED=true
-export INSTRUCTOR_IDS='testprofessor'
-export ROLE_SWITCH_USERS='testprofessor'
+export ADMINISTRATOR_IDS='testadmin'
+export ROLE_SWITCH_USERS='testadmin'
+export INSTRUCTOR_IDS=''
 export STUDENT_COURSE_NAME='STOR113, STOR118'
 export APP_BASE_URL='http://localhost:3000'
 ```
@@ -162,8 +180,9 @@ npm test
 | `PORT` | Port for the Node server. Defaults to `3000`; CloudApps commonly uses `8080` inside the container. |
 | `APP_BASE_URL` | Public base URL used for SSO redirects and email dashboard links. |
 | `TRUST_PROXY_AUTH` | Set to `true` in CloudApps when Shibboleth headers are trusted. |
+| `ADMINISTRATOR_IDS` | Comma-separated administrator ONYENs or emails. Administrators can assign professors and export course DB packages. |
 | `INSTRUCTOR_IDS` | Legacy comma-separated ONYENs or emails with broad staff dashboard access. |
-| `ROLE_SWITCH_USERS` | Comma-separated professor ONYENs or emails that can switch roles and manage courses/TAs. |
+| `ROLE_SWITCH_USERS` | Legacy role-switch allowlist. Used as an administrator fallback only when `ADMINISTRATOR_IDS` is unset. |
 | `STUDENT_COURSE_NAME` | Initial course list before it is changed from the dashboard. Courses may be separated by commas or spaces. |
 | `DATABASE_SSL` | Set to `true` if your PostgreSQL connection requires SSL. |
 
@@ -239,11 +258,16 @@ The app creates and updates its own tables at startup:
 - `queue_entries`: student queue entries.
 - `app_settings`: dashboard-managed settings such as course choices.
 - `course_tas`: course-specific TA assignments and email notification preferences.
+- `course_professors`: administrator-assigned professor for each course.
+- `course_roster_settings`: whether a course is restricted to the allowed-student roster.
+- `course_allowed_students`: students allowed to join roster-restricted course queues.
 
 Important constraints:
 
 - One active queue entry per student.
 - Unique TA assignment per course and TA identifier.
+- One professor assignment per course.
+- Unique allowed-student entry per course and student identifier.
 
 ## CloudApps / OpenShift Deployment
 
@@ -292,8 +316,9 @@ oc set env deployment/student-queue \
   TRUST_PROXY_AUTH=true \
   ALLOW_DEV_AUTH=false \
   TEST_LOGIN_ENABLED=false \
-  INSTRUCTOR_IDS='profonyen' \
-  ROLE_SWITCH_USERS='profonyen' \
+  ADMINISTRATOR_IDS='adminonyen' \
+  ROLE_SWITCH_USERS='adminonyen' \
+  INSTRUCTOR_IDS='' \
   STUDENT_COURSE_NAME='STOR113, STOR118' \
   APP_BASE_URL='https://<public-route-host>'
 ```
@@ -358,7 +383,7 @@ oc logs deployment/student-queue --tail=100
 
 ### Configure Courses
 
-Professors can edit the course list in **Student course choices**.
+Administrators can edit the course list in **Student course choices**.
 
 Courses may be separated by commas or spaces:
 
@@ -368,7 +393,7 @@ STOR113, STOR118, STOR666
 
 ### Add TAs
 
-Professors can add TAs under **Course TAs**. Each TA assignment includes:
+Administrators can assign a professor to each course under **Course professors**. Professors and administrators can add TAs under **Course TAs**. Each TA assignment includes:
 
 - Course name.
 - TA ONYEN or email.
@@ -376,6 +401,23 @@ Professors can add TAs under **Course TAs**. Each TA assignment includes:
 - Checkbox for queue-join email notifications.
 
 TAs can be assigned to multiple courses.
+
+If an administrator changes the professor assigned to a course, existing TA assignments for that course are cleared.
+
+### Manage Rosters
+
+Professors and administrators can manage allowed students under **Course rosters**:
+
+- Toggle whether only students on the roster may join a course queue.
+- Import a Canvas gradebook CSV. The app reads the `SIS Login ID` column as the student's ONYEN.
+- Manually add allowed students by ONYEN.
+- Remove allowed students.
+
+When roster restriction is off, any signed-in UNC student can join that course queue. When it is on, only students in `course_allowed_students` for that course can join.
+
+### Export Course Data
+
+Administrators can use **Export DB package** for a course to download a JSON package containing that course's professor assignment, TA assignments, roster settings, allowed students, and queue entries.
 
 ### Manage the Queue
 
@@ -410,9 +452,10 @@ Current app health endpoint:
 ## Known Operational Notes
 
 - Keep `ALLOW_DEV_AUTH=false` and `TEST_LOGIN_ENABLED=false` in production.
-- `ROLE_SWITCH_USERS` should be limited to trusted course administrators.
+- `ADMINISTRATOR_IDS` should be limited to trusted course administrators.
+- `ROLE_SWITCH_USERS` is retained for backward-compatible role switching and administrator fallback.
 - `INSTRUCTOR_IDS` is retained as a legacy broad staff-dashboard access setting.
-- TA access is best managed from the dashboard rather than environment variables.
+- Professor and TA access is best managed from the dashboard rather than environment variables.
 - The student-facing course list is stored in PostgreSQL after it is changed from the dashboard.
 - Course/TA assignments are stored in PostgreSQL.
 - Email delivery depends on SMTP configuration and UNC relay/network policy.

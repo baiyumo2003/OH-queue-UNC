@@ -52,6 +52,20 @@ async function removeCourseTa(taId) {
   );
 }
 
+async function getCourseTaById(taId) {
+  const result = await query(
+    `
+      SELECT id, course_name, ta_identifier, ta_email, notify_email
+      FROM course_tas
+      WHERE id = $1
+      LIMIT 1;
+    `,
+    [taId]
+  );
+
+  return result.rows[0] || null;
+}
+
 async function getCourseTas(courseNames = []) {
   const normalizedCourseNames = courseNames.map(normalizeCourseName).filter(Boolean);
   const result = await query(
@@ -114,6 +128,7 @@ async function getNotificationEmailsForCourse(courseName) {
 
 module.exports = {
   addCourseTa,
+  getCourseTaById,
   getCourseTas,
   getNotificationEmailsForCourse,
   getTaCoursesForUser,

@@ -75,7 +75,7 @@ function buildQueueJoinMessage({ entry, instructorUrl }) {
     "Help topic:",
     entry.helpTopic,
     "",
-    `Instructor dashboard: ${instructorUrl}`
+    `Staff dashboard: ${instructorUrl}`
   ].join("\n");
 
   const html = `
@@ -88,7 +88,7 @@ function buildQueueJoinMessage({ entry, instructorUrl }) {
     </ul>
     <p><strong>Help topic:</strong></p>
     <p>${escapeHtml(entry.helpTopic)}</p>
-    <p><a href="${escapeHtml(instructorUrl)}">Open instructor dashboard</a></p>
+    <p><a href="${escapeHtml(instructorUrl)}">Open staff dashboard</a></p>
   `;
 
   return { html, subject, text };
