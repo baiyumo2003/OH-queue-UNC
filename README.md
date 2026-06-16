@@ -391,7 +391,7 @@ STOR113, STOR118, STOR666
 
 ### Add TAs
 
-Administrators can assign a professor to each course under **Course professors**. Professors and administrators can add TAs under **Course TAs**. Each TA assignment includes:
+Administrators can add one or more professors to each course under **Course professors**. Professors and administrators can add TAs under **Course TAs**. Each TA assignment includes:
 
 - Course name.
 - TA ONYEN or email.
@@ -399,8 +399,6 @@ Administrators can assign a professor to each course under **Course professors**
 - Checkbox for queue-join email notifications.
 
 TAs can be assigned to multiple courses.
-
-If an administrator changes the professor assigned to a course, existing TA assignments for that course are cleared.
 
 ### Manage Rosters
 
@@ -416,6 +414,49 @@ When roster restriction is off, any signed-in UNC student can join that course q
 ### Export Course Data
 
 Administrators can use **Export DB package** for a course to download a JSON package containing that course's professor assignments, TA assignments, roster settings, allowed students, and queue entries.
+
+The download is useful for:
+
+- Backing up a course before major roster or staffing changes.
+- Auditing who had professor or TA access to a course.
+- Reviewing historical queue entries outside the app.
+- Sharing a course-specific data snapshot with another administrator.
+
+The file is plain UTF-8 JSON and is named like `STOR113-db-package.json`. It has this top-level shape:
+
+```json
+{
+  "courseName": "STOR113",
+  "exportedAt": "2026-06-16T22:15:00.000Z",
+  "professors": [],
+  "tas": [],
+  "rosterSettings": {},
+  "allowedStudents": [],
+  "queueEntries": []
+}
+```
+
+Important fields:
+
+- `professors`: professor ONYENs/emails assigned to the course.
+- `tas`: TA ONYENs/emails and whether each TA receives queue email notifications.
+- `rosterSettings`: whether the course is restricted to the allowed-student roster.
+- `allowedStudents`: manually added or CSV-imported students allowed into roster-restricted queues.
+- `queueEntries`: active, completed, and cancelled queue entries for that course.
+
+You can read it with common tools:
+
+```bash
+jq . STOR113-db-package.json
+jq '.professors' STOR113-db-package.json
+jq '.queueEntries[] | {student_name, help_topic, joined_at, completed_at, cancelled_at}' STOR113-db-package.json
+```
+
+Or with Node.js:
+
+```bash
+node -e "const db=require('./STOR113-db-package.json'); console.log(db.courseName, db.queueEntries.length)"
+```
 
 ### Manage the Queue
 
