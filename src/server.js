@@ -194,7 +194,45 @@ function icon(name) {
   return `<svg class="icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`;
 }
 
-function renderLayout({ title, body, notice = "", error = "" }) {
+function renderBrandHeader({ title, courseNames = [] }) {
+  const courses = Array.isArray(courseNames) ? courseNames.filter(Boolean) : [];
+  const hasCourses = courses.length > 0;
+  const displayTitle = hasCourses ? "Office Hours Queue" : title;
+  const subtitle = hasCourses
+    ? `${courses.length} course${courses.length === 1 ? "" : "s"} connected to the live queue`
+    : "UNC office hours queue";
+
+  const courseDirectory = hasCourses
+    ? `
+      <nav class="course-directory" aria-label="Courses in this queue">
+        <span class="course-directory-label">Courses</span>
+        <div class="course-directory-list">
+          ${courses.map((courseName) => `<span class="course-chip">${escapeHtml(courseName)}</span>`).join("")}
+        </div>
+      </nav>
+    `
+    : "";
+
+  return `
+    <header class="app-header">
+      <div class="brand-lockup">
+        <div class="brand-mark" aria-hidden="true">
+          <span>UNC</span>
+          <strong>STOR</strong>
+        </div>
+        <div class="brand-copy">
+          <p class="eyebrow">UNC Statistics &amp; Operations Research</p>
+          <h1>${escapeHtml(displayTitle)}</h1>
+          <p class="hero-subtitle">${escapeHtml(subtitle)}</p>
+        </div>
+      </div>
+      <a class="ghost-button" href="/">${icon("layers")} Home</a>
+      ${courseDirectory}
+    </header>
+  `;
+}
+
+function renderLayout({ title, body, courseNames = [], notice = "", error = "" }) {
   return `<!DOCTYPE html>
   <html lang="en">
     <head>
@@ -206,13 +244,7 @@ function renderLayout({ title, body, notice = "", error = "" }) {
     <body>
       <main class="page-shell">
         <section class="hero-card">
-          <div class="brand-row">
-            <div>
-              <p class="eyebrow">UNC Office Hours</p>
-              <h1>${escapeHtml(title)}</h1>
-            </div>
-            <a class="ghost-button" href="/">Home</a>
-          </div>
+          ${renderBrandHeader({ title, courseNames })}
           ${notice ? `<div class="alert success">${escapeHtml(notice)}</div>` : ""}
           ${error ? `<div class="alert error">${escapeHtml(error)}</div>` : ""}
           ${body}
@@ -434,6 +466,7 @@ function renderHomePage({ user, activeEntry, studentCourseNames, notice, error }
   return renderLayout({
     title,
     body,
+    courseNames: studentCourseNames,
     notice,
     error
   });
@@ -853,6 +886,7 @@ function renderInstructorPage({
   return renderLayout({
     title,
     body,
+    courseNames: studentCourseNames,
     notice,
     error
   });

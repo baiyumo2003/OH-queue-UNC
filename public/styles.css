@@ -51,6 +51,100 @@ body {
   gap: 1rem;
 }
 
+.app-header {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 1rem;
+  align-items: start;
+  margin-bottom: 1.25rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.brand-lockup {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.brand-mark {
+  display: grid;
+  width: 4.2rem;
+  height: 4.2rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 12px;
+  color: #ffffff;
+  background: linear-gradient(135deg, #13294b 0%, #4b9cd3 100%);
+  box-shadow: 0 14px 28px rgba(19, 41, 75, 0.18);
+  line-height: 1;
+}
+
+.brand-mark span {
+  margin-top: 0.65rem;
+  font-size: 0.74rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+}
+
+.brand-mark strong {
+  margin-bottom: 0.75rem;
+  font-size: 1.15rem;
+  letter-spacing: 0.04em;
+}
+
+.brand-copy {
+  min-width: 0;
+}
+
+.hero-subtitle {
+  margin: 0.45rem 0 0;
+  color: var(--ink-soft);
+  font-weight: 650;
+}
+
+.course-directory {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.75rem;
+  border: 1px solid rgba(37, 99, 235, 0.14);
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(75, 156, 211, 0.1), rgba(37, 99, 235, 0.05));
+}
+
+.course-directory-label {
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.course-directory-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.course-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  border: 1px solid rgba(37, 99, 235, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.78);
+  color: #13294b;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.9rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
 .content-single {
   display: grid;
   gap: 1rem;
@@ -112,8 +206,9 @@ p {
 
 h1 {
   margin-bottom: 0;
-  font-size: clamp(2rem, 4vw, 3.1rem);
+  font-size: clamp(2.3rem, 5vw, 4.4rem);
   line-height: 1.02;
+  max-width: 12ch;
 }
 
 h2 {
@@ -544,6 +639,18 @@ a.secondary-button:hover {
     align-items: flex-start;
   }
 
+  .app-header {
+    grid-template-columns: 1fr;
+  }
+
+  .brand-lockup {
+    align-items: center;
+  }
+
+  h1 {
+    max-width: none;
+  }
+
   .dashboard-chips {
     justify-content: flex-start;
   }
@@ -584,6 +691,21 @@ a.secondary-button:hover {
 @media (max-width: 560px) {
   .hero-card {
     padding: 1rem;
+  }
+
+  .brand-lockup,
+  .course-directory {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .brand-mark {
+    width: 3.6rem;
+    height: 3.6rem;
+  }
+
+  h1 {
+    font-size: clamp(2rem, 12vw, 3.1rem);
   }
 
   .dashboard-stat-grid,
