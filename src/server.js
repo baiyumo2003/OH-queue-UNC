@@ -504,7 +504,7 @@ function buildStaffViewSwitcher({ staffView, professorOptions: options = [], sel
         <span class="chip">${icon("user")} Administrator</span>
       </div>
       <div class="view-toggle staff-view-toggle" aria-label="Administrator view">
-        <a href="/">Student view</a>
+        <a href="/?view=student">Student view</a>
         <a class="${staffView === "administrator" ? "active" : ""}" href="${buildInstructorQuery({ staffView: "administrator", queueView })}">Administrator view</a>
         <a class="${staffView === "professor" ? "active" : ""}" href="${professorHref}">Professor view</a>
       </div>
@@ -1394,7 +1394,7 @@ app.post("/session/role", requireAuth, (req, res) => {
   }
 
   res.setHeader("Set-Cookie", serializeRoleOverride(role));
-  return redirectWithMessage(res, role === "instructor" ? "/instructor" : "/", {
+  return redirectWithMessage(res, role === "instructor" ? "/instructor" : "/?view=student", {
     notice: `Role switched to ${role}.`
   });
 });
@@ -1442,8 +1442,13 @@ app.get("/test-login/instructor", (_req, res) => {
 
 app.get("/", async (req, res, next) => {
   try {
+    const requestedStudentView = req.query.view === "student";
     const instructorAccess = req.user ? await resolveInstructorAccess(req.user) : null;
-    if (instructorAccess && (req.user.role === "instructor" || instructorAccess.isAdmin || instructorAccess.isProfessor || instructorAccess.isTa)) {
+    if (
+      !requestedStudentView &&
+      instructorAccess &&
+      (req.user.role === "instructor" || instructorAccess.isAdmin || instructorAccess.isProfessor || instructorAccess.isTa)
+    ) {
       return res.redirect("/instructor");
     }
 
