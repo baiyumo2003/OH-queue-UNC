@@ -45,12 +45,10 @@ Students cannot see other students or the full queue.
 Administrators listed in `ADMINISTRATOR_IDS` can:
 
 - Update the student-facing course list.
-- Assign one professor to each course.
-- Change a course's professor.
+- Add or remove one or more professors for each course.
+- Use Professor view to inspect the dashboard as a selected professor.
 - Manage every course's TAs and allowed-student roster.
 - Export all database content for a course.
-
-Changing a course professor clears that course's existing TA assignments.
 
 ### TA
 
@@ -258,7 +256,7 @@ The app creates and updates its own tables at startup:
 - `queue_entries`: student queue entries.
 - `app_settings`: dashboard-managed settings such as course choices.
 - `course_tas`: course-specific TA assignments and email notification preferences.
-- `course_professors`: administrator-assigned professor for each course.
+- `course_professors`: administrator-assigned professors for each course.
 - `course_roster_settings`: whether a course is restricted to the allowed-student roster.
 - `course_allowed_students`: students allowed to join roster-restricted course queues.
 
@@ -266,7 +264,7 @@ Important constraints:
 
 - One active queue entry per student.
 - Unique TA assignment per course and TA identifier.
-- One professor assignment per course.
+- Unique professor assignment per course and professor identifier.
 - Unique allowed-student entry per course and student identifier.
 
 ## CloudApps / OpenShift Deployment
@@ -417,7 +415,7 @@ When roster restriction is off, any signed-in UNC student can join that course q
 
 ### Export Course Data
 
-Administrators can use **Export DB package** for a course to download a JSON package containing that course's professor assignment, TA assignments, roster settings, allowed students, and queue entries.
+Administrators can use **Export DB package** for a course to download a JSON package containing that course's professor assignments, TA assignments, roster settings, allowed students, and queue entries.
 
 ### Manage the Queue
 

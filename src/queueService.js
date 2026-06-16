@@ -1,12 +1,12 @@
 const { query } = require("./db");
 
 function normalizeCourseFilter(courseNames) {
-  if (!Array.isArray(courseNames) || courseNames.length === 0) {
+  if (!Array.isArray(courseNames)) {
     return null;
   }
 
   const normalized = courseNames.map((courseName) => String(courseName || "").trim()).filter(Boolean);
-  return normalized.length > 0 ? normalized : null;
+  return normalized;
 }
 
 async function getActiveQueue(courseNames) {

@@ -23,10 +23,10 @@ async function getCourseProfessors(courseNames = []) {
   const normalizedCourseNames = courseNames.map(normalizeCourseName).filter(Boolean);
   const result = await query(
     `
-      SELECT course_name, professor_identifier, professor_email, updated_at
+      SELECT id, course_name, professor_identifier, professor_email, updated_at
       FROM course_professors
       WHERE $1::text[] IS NULL OR course_name = ANY($1::text[])
-      ORDER BY course_name ASC;
+      ORDER BY course_name ASC, professor_identifier ASC;
     `,
     [normalizedCourseNames.length > 0 ? normalizedCourseNames : null]
   );
@@ -35,7 +35,44 @@ async function getCourseProfessors(courseNames = []) {
 }
 
 function professorsByCourse(courseProfessors) {
-  return new Map(courseProfessors.map((professor) => [professor.course_name, professor]));
+  const grouped = new Map();
+  for (const professor of courseProfessors) {
+    if (!grouped.has(professor.course_name)) {
+      grouped.set(professor.course_name, []);
+    }
+    grouped.get(professor.course_name).push(professor);
+  }
+  return grouped;
+}
+
+function professorOptions(courseProfessors) {
+  const professors = new Map();
+  for (const professor of courseProfessors) {
+    const key = professor.professor_identifier;
+    if (!professors.has(key)) {
+      professors.set(key, {
+        professor_identifier: professor.professor_identifier,
+        professor_email: professor.professor_email,
+        courseNames: []
+      });
+    }
+    professors.get(key).courseNames.push(professor.course_name);
+  }
+
+  return Array.from(professors.values()).sort((left, right) =>
+    left.professor_identifier.localeCompare(right.professor_identifier)
+  );
+}
+
+function getProfessorCoursesFromAssignments(courseProfessors, professorIdentifier) {
+  const normalizedIdentifier = normalizeIdentifier(professorIdentifier);
+  if (!normalizedIdentifier) {
+    return [];
+  }
+
+  return courseProfessors
+    .filter((professor) => professor.professor_identifier === normalizedIdentifier)
+    .map((professor) => professor.course_name);
 }
 
 async function getProfessorCoursesForUser(userId, email) {
@@ -64,43 +101,37 @@ async function assignCourseProfessor({ courseName, professorIdentifier, professo
     throw new Error("Course, professor identifier, and professor email are required.");
   }
 
-  const existing = await query(
-    `
-      SELECT professor_identifier
-      FROM course_professors
-      WHERE course_name = $1
-      LIMIT 1;
-    `,
-    [normalizedCourseName]
-  );
-  const previousIdentifier = existing.rows[0]?.professor_identifier || "";
-  const professorChanged = previousIdentifier && previousIdentifier !== normalizedIdentifier;
-
   const result = await query(
     `
       INSERT INTO course_professors (course_name, professor_identifier, professor_email, updated_at)
       VALUES ($1, $2, $3, NOW())
-      ON CONFLICT (course_name)
+      ON CONFLICT (course_name, professor_identifier)
       DO UPDATE SET
-        professor_identifier = EXCLUDED.professor_identifier,
         professor_email = EXCLUDED.professor_email,
         updated_at = NOW()
-      RETURNING course_name, professor_identifier, professor_email, updated_at;
+      RETURNING id, course_name, professor_identifier, professor_email, updated_at;
     `,
     [normalizedCourseName, normalizedIdentifier, normalizedEmail]
   );
 
-  if (professorChanged) {
-    await query(
-      `
-        DELETE FROM course_tas
-        WHERE course_name = $1;
-      `,
-      [normalizedCourseName]
-    );
+  return { professor: result.rows[0] };
+}
+
+async function removeCourseProfessor({ courseName, professorIdentifier }) {
+  const normalizedCourseName = normalizeCourseName(courseName);
+  const normalizedIdentifier = normalizeIdentifier(professorIdentifier);
+  if (!normalizedCourseName || !normalizedIdentifier) {
+    throw new Error("Course and professor identifier are required.");
   }
 
-  return { professor: result.rows[0], professorChanged };
+  await query(
+    `
+      DELETE FROM course_professors
+      WHERE course_name = $1
+        AND professor_identifier = $2;
+    `,
+    [normalizedCourseName, normalizedIdentifier]
+  );
 }
 
 async function getRosterSettings(courseNames = []) {
@@ -380,7 +411,7 @@ async function getCoursePackage(courseName) {
   return {
     courseName: normalizedCourseName,
     exportedAt: new Date().toISOString(),
-    professor: professors[0] || null,
+    professors,
     tas: tas.rows,
     rosterSettings: rosterSettings[0] || { course_name: normalizedCourseName, restrict_to_roster: false },
     allowedStudents,
@@ -397,6 +428,7 @@ module.exports = {
   getAllowedStudents,
   getCoursePackage,
   getCourseProfessors,
+  getProfessorCoursesFromAssignments,
   getProfessorCoursesForUser,
   getRosterSettings,
   importAllowedStudentsFromCsv,
@@ -404,8 +436,10 @@ module.exports = {
   normalizeEmail,
   normalizeIdentifier,
   parseRosterCsv,
+  professorOptions,
   professorsByCourse,
   removeAllowedStudent,
+  removeCourseProfessor,
   rosterSettingsByCourse,
   setRosterRestriction
 };

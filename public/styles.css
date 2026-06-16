@@ -409,6 +409,12 @@ h3 {
   border-radius: var(--radius);
 }
 
+.compact-selector {
+  grid-template-columns: minmax(220px, 1fr) auto;
+  align-items: end;
+  margin-top: 0.85rem;
+}
+
 .course-queue-stack {
   display: grid;
   gap: 1.25rem;

@@ -18,12 +18,15 @@ const {
   getAllowedStudents,
   getCoursePackage,
   getCourseProfessors,
+  getProfessorCoursesFromAssignments,
   getProfessorCoursesForUser,
   getRosterSettings,
   importAllowedStudentsFromCsv,
   isStudentAllowedForCourse,
+  professorOptions,
   professorsByCourse,
   removeAllowedStudent,
+  removeCourseProfessor,
   rosterSettingsByCourse,
   setRosterRestriction
 } = require("./courseAdminService");
@@ -419,7 +422,78 @@ function normalizeStaffView(value, instructorAccess) {
   return value === "professor" ? "professor" : "administrator";
 }
 
-function buildStaffViewSwitcher(staffView) {
+function normalizeSelectedProfessor(value, options = []) {
+  const requested = normalizeUserId(value);
+  if (requested && options.some((option) => option.professor_identifier === requested)) {
+    return requested;
+  }
+
+  return options[0]?.professor_identifier || "";
+}
+
+function buildInstructorQuery(params = {}) {
+  const search = new URLSearchParams();
+  if (params.queueView) {
+    search.set("queueView", params.queueView);
+  }
+  if (params.staffView) {
+    search.set("staffView", params.staffView);
+  }
+  if (params.professor) {
+    search.set("professor", params.professor);
+  }
+  const queryString = search.toString();
+  return `/instructor${queryString ? `?${queryString}` : ""}`;
+}
+
+function buildViewContextFields({ staffView, selectedProfessorIdentifier } = {}) {
+  if (staffView !== "professor") {
+    return "";
+  }
+
+  return `
+    <input type="hidden" name="staffView" value="professor">
+    <input type="hidden" name="professor" value="${escapeHtml(selectedProfessorIdentifier || "")}">
+  `;
+}
+
+function buildStaffViewSwitcher({ staffView, professorOptions: options = [], selectedProfessorIdentifier = "", queueView }) {
+  const professorHref = buildInstructorQuery({
+    staffView: "professor",
+    professor: selectedProfessorIdentifier || options[0]?.professor_identifier || "",
+    queueView
+  });
+  const professorSelector =
+    staffView === "professor"
+      ? `
+        <form class="stack-form compact-selector" method="get" action="/instructor">
+          <input type="hidden" name="staffView" value="professor">
+          <input type="hidden" name="queueView" value="${escapeHtml(queueView || "unified")}">
+          <label>
+            Professor
+            <select name="professor" ${options.length === 0 ? "disabled" : ""}>
+              ${
+                options.length === 0
+                  ? '<option value="">No professors assigned yet</option>'
+                  : options
+                      .map(
+                        (option) => `
+                          <option value="${escapeHtml(option.professor_identifier)}" ${
+                            option.professor_identifier === selectedProfessorIdentifier ? "selected" : ""
+                          }>
+                            ${escapeHtml(option.professor_identifier)} (${option.courseNames.length} course${option.courseNames.length === 1 ? "" : "s"})
+                          </option>
+                        `
+                      )
+                      .join("")
+              }
+            </select>
+          </label>
+          <button class="secondary-button compact-button" type="submit">View professor</button>
+        </form>
+      `
+      : "";
+
   return `
     <div class="panel">
       <div class="panel-heading-row">
@@ -431,9 +505,10 @@ function buildStaffViewSwitcher(staffView) {
       </div>
       <div class="view-toggle staff-view-toggle" aria-label="Administrator view">
         <a href="/">Student view</a>
-        <a class="${staffView === "administrator" ? "active" : ""}" href="/instructor?staffView=administrator">Administrator view</a>
-        <a class="${staffView === "professor" ? "active" : ""}" href="/instructor?staffView=professor">Professor view</a>
+        <a class="${staffView === "administrator" ? "active" : ""}" href="${buildInstructorQuery({ staffView: "administrator", queueView })}">Administrator view</a>
+        <a class="${staffView === "professor" ? "active" : ""}" href="${professorHref}">Professor view</a>
       </div>
+      ${professorSelector}
       <p class="queue-meta">Administrator view includes course setup, professor assignment, exports, TA management, and roster rules. Professor view shows the course-level tools a professor uses.</p>
     </div>
   `;
@@ -627,8 +702,31 @@ function buildCourseSettingsPanel(studentCourseName) {
 function buildProfessorAssignmentPanel(studentCourseNames, courseProfessorsByCourse) {
   const courseCards = studentCourseNames
     .map((courseName) => {
-      const professor = courseProfessorsByCourse.get(courseName);
-      const professorSummary = professor ? professor.professor_identifier : "No professor";
+      const professors = courseProfessorsByCourse.get(courseName) || [];
+      const professorSummary =
+        professors.length > 0
+          ? `${professors.length} professor${professors.length === 1 ? "" : "s"}`
+          : "No professor";
+      const professorRows =
+        professors.length === 0
+          ? '<tr><td colspan="3">No professors assigned to this course yet.</td></tr>'
+          : professors
+              .map(
+                (professor) => `
+                  <tr>
+                    <td>${escapeHtml(professor.professor_identifier)}</td>
+                    <td>${escapeHtml(professor.professor_email)}</td>
+                    <td class="action-cell">
+                      <form method="post" action="/instructor/professors/remove">
+                        <input type="hidden" name="courseName" value="${escapeHtml(courseName)}">
+                        <input type="hidden" name="professorIdentifier" value="${escapeHtml(professor.professor_identifier)}">
+                        <button class="ghost-button compact-button" type="submit">${icon("x")} Remove</button>
+                      </form>
+                    </td>
+                  </tr>
+                `
+              )
+              .join("");
       return `
         <details class="course-admin-card collapsible-course">
           <summary>
@@ -639,25 +737,31 @@ function buildProfessorAssignmentPanel(studentCourseNames, courseProfessorsByCou
             <div class="panel-heading-row">
               <div>
                 <h3>${escapeHtml(courseName)}</h3>
-                <p class="queue-meta">${
-                  professor
-                    ? `Professor: ${escapeHtml(professor.professor_identifier)} (${escapeHtml(professor.professor_email)})`
-                    : "No professor assigned yet."
-                }</p>
+                <p class="queue-meta">${professorSummary}</p>
               </div>
               <a class="secondary-button compact-button" href="/instructor/courses/${encodeURIComponent(courseName)}/export">${icon("layers")} Export DB package</a>
             </div>
+            <table class="data-table compact-table">
+              <thead>
+                <tr>
+                  <th>Professor</th>
+                  <th>Email</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>${professorRows}</tbody>
+            </table>
             <form class="stack-form ta-form" method="post" action="/instructor/professors">
               <input type="hidden" name="courseName" value="${escapeHtml(courseName)}">
               <label>
                 Professor ONYEN or email
-                <input name="professorIdentifier" maxlength="120" value="${escapeHtml(professor?.professor_identifier || "")}" placeholder="onyen or onyen@unc.edu" required>
+                <input name="professorIdentifier" maxlength="120" placeholder="onyen or onyen@unc.edu" required>
               </label>
               <label>
                 Professor email
-                <input name="professorEmail" type="email" maxlength="200" value="${escapeHtml(professor?.professor_email || "")}" placeholder="optional; defaults to ONYEN@unc.edu">
+                <input name="professorEmail" type="email" maxlength="200" placeholder="optional; defaults to ONYEN@unc.edu">
               </label>
-              <button class="secondary-button" type="submit">Assign professor</button>
+              <button class="secondary-button" type="submit">Add professor</button>
             </form>
           </div>
         </details>
@@ -668,17 +772,18 @@ function buildProfessorAssignmentPanel(studentCourseNames, courseProfessorsByCou
   return `
     <div class="panel">
       <h2>Course professors</h2>
-      <p>Administrators assign one professor per course. Changing a course professor clears that course's previous TA assignments.</p>
+      <p>Administrators can assign multiple professors to each course.</p>
       <div class="course-admin-grid">${courseCards}</div>
     </div>
   `;
 }
 
-function buildTaManagementPanel(managedCourseNames, courseTasByCourse) {
+function buildTaManagementPanel(managedCourseNames, courseTasByCourse, viewContext = {}) {
   if (managedCourseNames.length === 0) {
     return "";
   }
 
+  const contextFields = buildViewContextFields(viewContext);
   const courseCards = managedCourseNames
     .map((courseName) => {
       const tas = courseTasByCourse.get(courseName) || [];
@@ -694,6 +799,7 @@ function buildTaManagementPanel(managedCourseNames, courseTasByCourse) {
                     <td>${ta.notify_email ? "Yes" : "No"}</td>
                     <td class="action-cell">
                       <form method="post" action="/instructor/tas/${ta.id}/remove">
+                        ${contextFields}
                         <button class="ghost-button compact-button" type="submit">Remove</button>
                       </form>
                     </td>
@@ -722,6 +828,7 @@ function buildTaManagementPanel(managedCourseNames, courseTasByCourse) {
               <tbody>${rows}</tbody>
             </table>
             <form class="stack-form ta-form" method="post" action="/instructor/tas">
+              ${contextFields}
               <input type="hidden" name="courseName" value="${escapeHtml(courseName)}">
               <label>
                 TA ONYEN or email
@@ -752,11 +859,12 @@ function buildTaManagementPanel(managedCourseNames, courseTasByCourse) {
   `;
 }
 
-function buildRosterManagementPanel(managedCourseNames, rosterSettingsByCourseMap, allowedStudentCounts, allowedStudentsByCourseMap) {
+function buildRosterManagementPanel(managedCourseNames, rosterSettingsByCourseMap, allowedStudentCounts, allowedStudentsByCourseMap, viewContext = {}) {
   if (managedCourseNames.length === 0) {
     return "";
   }
 
+  const contextFields = buildViewContextFields(viewContext);
   const courseCards = managedCourseNames
     .map((courseName) => {
       const settings = rosterSettingsByCourseMap.get(courseName);
@@ -776,6 +884,7 @@ function buildRosterManagementPanel(managedCourseNames, rosterSettingsByCourseMa
                     <td>${escapeHtml(student.student_email || "")}</td>
                     <td class="action-cell">
                       <form method="post" action="/instructor/rosters/students/${student.id}/remove">
+                        ${contextFields}
                         <button class="ghost-button compact-button" type="submit">${icon("x")} Remove</button>
                       </form>
                     </td>
@@ -800,6 +909,7 @@ function buildRosterManagementPanel(managedCourseNames, rosterSettingsByCourseMa
                 <p class="queue-meta">${allowedCount} allowed student${allowedCount === 1 ? "" : "s"} imported.</p>
               </div>
               <form method="post" action="/instructor/rosters/settings">
+                ${contextFields}
                 <input type="hidden" name="courseName" value="${escapeHtml(courseName)}">
                 <label class="checkbox-label">
                   <input name="restrictToRoster" type="checkbox" value="true" ${restrictToRoster ? "checked" : ""}>
@@ -809,6 +919,7 @@ function buildRosterManagementPanel(managedCourseNames, rosterSettingsByCourseMa
               </form>
             </div>
             <form class="stack-form ta-form" method="post" action="/instructor/rosters/import" enctype="multipart/form-data">
+              ${contextFields}
               <input type="hidden" name="courseName" value="${escapeHtml(courseName)}">
               <label>
                 Import Canvas CSV
@@ -817,6 +928,7 @@ function buildRosterManagementPanel(managedCourseNames, rosterSettingsByCourseMa
               <button class="secondary-button" type="submit">${icon("layers")} Import SIS Login IDs</button>
             </form>
             <form class="stack-form ta-form" method="post" action="/instructor/rosters/students">
+              ${contextFields}
               <input type="hidden" name="courseName" value="${escapeHtml(courseName)}">
               <label>
                 Student ONYEN
@@ -926,17 +1038,26 @@ function buildActiveQueueTable(entries, { emptyMessage, startIndex = 0 } = {}) {
   `;
 }
 
-function buildQueueViewToggle(queueView, staffView) {
-  const staffViewSuffix = staffView ? `&staffView=${encodeURIComponent(staffView)}` : "";
+function buildQueueViewToggle(queueView, staffView, selectedProfessorIdentifier) {
+  const joinedTimeHref = buildInstructorQuery({
+    queueView: "unified",
+    staffView,
+    professor: staffView === "professor" ? selectedProfessorIdentifier : ""
+  });
+  const courseHref = buildInstructorQuery({
+    queueView: "course",
+    staffView,
+    professor: staffView === "professor" ? selectedProfessorIdentifier : ""
+  });
   return `
     <div class="view-toggle" aria-label="Queue view">
-      <a class="${queueView === "unified" ? "active" : ""}" href="/instructor?queueView=unified${staffViewSuffix}">Joined time</a>
-      <a class="${queueView === "course" ? "active" : ""}" href="/instructor?queueView=course${staffViewSuffix}">By course</a>
+      <a class="${queueView === "unified" ? "active" : ""}" href="${joinedTimeHref}">Joined time</a>
+      <a class="${queueView === "course" ? "active" : ""}" href="${courseHref}">By course</a>
     </div>
   `;
 }
 
-function buildActiveQueuePanel({ activeQueue, studentCourseNames, instructorAccess, queueView, staffView }) {
+function buildActiveQueuePanel({ activeQueue, studentCourseNames, instructorAccess, queueView, staffView, selectedProfessorIdentifier }) {
   if (queueView === "course") {
     const courseOrder = getInstructorCourseOrder(activeQueue, studentCourseNames, instructorAccess);
     const grouped = new Map(courseOrder.map((courseName) => [courseName, []]));
@@ -968,7 +1089,7 @@ function buildActiveQueuePanel({ activeQueue, studentCourseNames, instructorAcce
       <div class="panel">
         <div class="panel-heading-row">
           <h2>Active queue</h2>
-          ${buildQueueViewToggle(queueView, staffView)}
+          ${buildQueueViewToggle(queueView, staffView, selectedProfessorIdentifier)}
         </div>
         <div class="course-queue-stack">${courseSections}</div>
       </div>
@@ -979,7 +1100,7 @@ function buildActiveQueuePanel({ activeQueue, studentCourseNames, instructorAcce
     <div class="panel">
       <div class="panel-heading-row">
         <h2>Active queue</h2>
-        ${buildQueueViewToggle(queueView, staffView)}
+        ${buildQueueViewToggle(queueView, staffView, selectedProfessorIdentifier)}
       </div>
       ${buildActiveQueueTable(activeQueue)}
     </div>
@@ -1121,6 +1242,9 @@ function renderInstructorPage({
   allowedStudentsByCourseMap,
   queueView,
   staffView,
+  professorOptions,
+  selectedProfessorIdentifier,
+  managedCourseNames,
   notice,
   error
 }) {
@@ -1134,7 +1258,9 @@ function renderInstructorPage({
     : instructorAccess.isProfessor
       ? "Professor"
       : "TA";
-  const managedCourseNames = instructorAccess.isAdmin ? studentCourseNames : instructorAccess.managedCourseNames || [];
+  const courseManagementNames =
+    managedCourseNames || (instructorAccess.isAdmin ? studentCourseNames : instructorAccess.managedCourseNames || []);
+  const viewContext = { staffView, selectedProfessorIdentifier };
 
   const completedRows =
     dashboard.completedToday.length === 0
@@ -1173,17 +1299,21 @@ function renderInstructorPage({
       }
     </div>
 
-    ${instructorAccess.isAdmin ? buildStaffViewSwitcher(staffView) : buildRoleSwitchPanel(user)}
+    ${
+      instructorAccess.isAdmin
+        ? buildStaffViewSwitcher({ staffView, professorOptions, selectedProfessorIdentifier, queueView })
+        : buildRoleSwitchPanel(user)
+    }
 
     ${showAdminControls ? buildCourseSettingsPanel(studentCourseName) : ""}
     ${showAdminControls ? buildProfessorAssignmentPanel(studentCourseNames, courseProfessorsByCourse) : ""}
-    ${buildTaManagementPanel(managedCourseNames, courseTasByCourse)}
-    ${buildRosterManagementPanel(managedCourseNames, rosterSettingsByCourseMap, allowedStudentCounts, allowedStudentsByCourseMap)}
+    ${buildTaManagementPanel(courseManagementNames, courseTasByCourse, viewContext)}
+    ${buildRosterManagementPanel(courseManagementNames, rosterSettingsByCourseMap, allowedStudentCounts, allowedStudentsByCourseMap, viewContext)}
 
     ${buildDashboardStatsPanel(dashboard)}
     ${buildCourseStatsPanel({ dashboard, studentCourseNames, instructorAccess })}
 
-    ${buildActiveQueuePanel({ activeQueue, studentCourseNames, instructorAccess, queueView, staffView })}
+    ${buildActiveQueuePanel({ activeQueue, studentCourseNames, instructorAccess, queueView, staffView, selectedProfessorIdentifier })}
 
     <div class="panel">
       <h2>Completed today</h2>
@@ -1216,6 +1346,18 @@ function redirectWithMessage(res, path, params) {
   const search = new URLSearchParams(params);
   const suffix = search.size ? `?${search.toString()}` : "";
   return res.redirect(`${path}${suffix}`);
+}
+
+function getInstructorReturnParams(req, params = {}) {
+  const returnParams = { ...params };
+  if (req.body?.staffView === "professor") {
+    returnParams.staffView = "professor";
+    const professor = normalizeUserId(req.body.professor);
+    if (professor) {
+      returnParams.professor = professor;
+    }
+  }
+  return returnParams;
 }
 
 app.get("/healthz", (_req, res) => {
@@ -1404,13 +1546,30 @@ app.get("/instructor", requireInstructorAccess, async (req, res, next) => {
       getStudentCourseName(),
       getStudentCourseNames()
     ]);
-    const managedCourseNames = instructorAccess.isAdmin ? studentCourseNames : instructorAccess.managedCourseNames || [];
+    const courseProfessors = instructorAccess.isAdmin ? await getCourseProfessors(studentCourseNames) : [];
+    const availableProfessorOptions = professorOptions(courseProfessors);
+    const selectedProfessorIdentifier =
+      instructorAccess.isAdmin && staffView === "professor"
+        ? normalizeSelectedProfessor(req.query.professor, availableProfessorOptions)
+        : "";
+    const selectedProfessorCourseNames = getProfessorCoursesFromAssignments(courseProfessors, selectedProfessorIdentifier);
+    const managedCourseNames =
+      instructorAccess.isAdmin && staffView === "professor"
+        ? selectedProfessorCourseNames
+        : instructorAccess.isAdmin
+          ? studentCourseNames
+          : instructorAccess.managedCourseNames || [];
+    const viewCourseNames =
+      instructorAccess.isAdmin && staffView === "professor" ? selectedProfessorCourseNames : instructorAccess.courseNames;
+    const viewInstructorAccess =
+      instructorAccess.isAdmin && staffView === "professor"
+        ? { ...instructorAccess, courseNames: viewCourseNames }
+        : instructorAccess;
     const rosterPreviewCourseNames = managedCourseNames;
-    const [activeQueue, dashboard, courseTas, courseProfessors, rosterSettings, allowedStudents, allowedStudentCounts] = await Promise.all([
-      getActiveQueue(instructorAccess.courseNames),
-      getDashboardStats(instructorAccess.courseNames),
+    const [activeQueue, dashboard, courseTas, rosterSettings, allowedStudents, allowedStudentCounts] = await Promise.all([
+      getActiveQueue(viewCourseNames),
+      getDashboardStats(viewCourseNames),
       getCourseTas(managedCourseNames),
-      instructorAccess.isAdmin ? getCourseProfessors(studentCourseNames) : [],
       getRosterSettings(rosterPreviewCourseNames),
       getAllowedStudents(rosterPreviewCourseNames),
       getAllowedStudentCounts(rosterPreviewCourseNames)
@@ -1423,7 +1582,7 @@ app.get("/instructor", requireInstructorAccess, async (req, res, next) => {
         dashboard,
         studentCourseName,
         studentCourseNames,
-        instructorAccess,
+        instructorAccess: viewInstructorAccess,
         courseProfessorsByCourse: professorsByCourse(courseProfessors),
         courseTasByCourse: groupTasByCourse(courseTas),
         rosterSettingsByCourseMap: rosterSettingsByCourse(rosterSettings),
@@ -1431,6 +1590,9 @@ app.get("/instructor", requireInstructorAccess, async (req, res, next) => {
         allowedStudentsByCourseMap: allowedStudentsByCourse(allowedStudents),
         queueView,
         staffView,
+        professorOptions: availableProfessorOptions,
+        selectedProfessorIdentifier,
+        managedCourseNames,
         notice: req.query.notice,
         error: req.query.error
       })
@@ -1454,15 +1616,29 @@ app.post("/instructor/settings/course-name", requireInstructorAccess, requireCou
 
 app.post("/instructor/professors", requireInstructorAccess, requireCourseAdmin, async (req, res, next) => {
   try {
-    const result = await assignCourseProfessor({
+    await assignCourseProfessor({
       courseName: req.body.courseName,
       professorIdentifier: req.body.professorIdentifier,
       professorEmail: req.body.professorEmail
     });
-    const suffix = result.professorChanged ? " Previous TA assignments for this course were cleared." : "";
-    return redirectWithMessage(res, "/instructor", { notice: `Professor assignment saved.${suffix}` });
+    return redirectWithMessage(res, "/instructor", { notice: "Professor assignment saved." });
   } catch (error) {
     if (error.message === "Course, professor identifier, and professor email are required.") {
+      return redirectWithMessage(res, "/instructor", { error: error.message });
+    }
+    next(error);
+  }
+});
+
+app.post("/instructor/professors/remove", requireInstructorAccess, requireCourseAdmin, async (req, res, next) => {
+  try {
+    await removeCourseProfessor({
+      courseName: req.body.courseName,
+      professorIdentifier: req.body.professorIdentifier
+    });
+    return redirectWithMessage(res, "/instructor", { notice: "Professor assignment removed." });
+  } catch (error) {
+    if (error.message === "Course and professor identifier are required.") {
       return redirectWithMessage(res, "/instructor", { error: error.message });
     }
     next(error);
@@ -1478,10 +1654,10 @@ app.post("/instructor/tas", requireInstructorAccess, requireManagedCourse, async
       notifyEmail: req.body.notifyEmail === "true"
     });
 
-    return redirectWithMessage(res, "/instructor", { notice: "TA assignment saved." });
+    return redirectWithMessage(res, "/instructor", getInstructorReturnParams(req, { notice: "TA assignment saved." }));
   } catch (error) {
     if (error.message === "Course, TA identifier, and TA email are required.") {
-      return redirectWithMessage(res, "/instructor", { error: error.message });
+      return redirectWithMessage(res, "/instructor", getInstructorReturnParams(req, { error: error.message }));
     }
     next(error);
   }
@@ -1491,13 +1667,13 @@ app.post("/instructor/tas/:taId/remove", requireInstructorAccess, async (req, re
   try {
     const ta = await getCourseTaById(req.params.taId);
     if (!ta || !canManageCourse(req.instructorAccess, ta.course_name)) {
-      return redirectWithMessage(res, "/instructor", {
+      return redirectWithMessage(res, "/instructor", getInstructorReturnParams(req, {
         error: "Only administrators and the assigned professor can remove that TA."
-      });
+      }));
     }
 
     await removeCourseTa(req.params.taId);
-    return redirectWithMessage(res, "/instructor", { notice: "TA assignment removed." });
+    return redirectWithMessage(res, "/instructor", getInstructorReturnParams(req, { notice: "TA assignment removed." }));
   } catch (error) {
     next(error);
   }
@@ -1506,7 +1682,7 @@ app.post("/instructor/tas/:taId/remove", requireInstructorAccess, async (req, re
 app.post("/instructor/rosters/settings", requireInstructorAccess, requireManagedCourse, async (req, res, next) => {
   try {
     await setRosterRestriction(req.body.courseName, req.body.restrictToRoster === "true");
-    return redirectWithMessage(res, "/instructor", { notice: "Roster restriction updated." });
+    return redirectWithMessage(res, "/instructor", getInstructorReturnParams(req, { notice: "Roster restriction updated." }));
   } catch (error) {
     next(error);
   }
@@ -1520,14 +1696,18 @@ app.post(
   async (req, res, next) => {
     try {
       if (!req.file?.buffer) {
-        return redirectWithMessage(res, "/instructor", { error: "Please choose a CSV file to import." });
+        return redirectWithMessage(res, "/instructor", getInstructorReturnParams(req, { error: "Please choose a CSV file to import." }));
       }
 
       const importedCount = await importAllowedStudentsFromCsv(req.body.courseName, req.file.buffer.toString("utf8"));
-      return redirectWithMessage(res, "/instructor", { notice: `${importedCount} student${importedCount === 1 ? "" : "s"} imported.` });
+      return redirectWithMessage(
+        res,
+        "/instructor",
+        getInstructorReturnParams(req, { notice: `${importedCount} student${importedCount === 1 ? "" : "s"} imported.` })
+      );
     } catch (error) {
       if (error.message === "CSV must include a SIS Login ID column.") {
-        return redirectWithMessage(res, "/instructor", { error: error.message });
+        return redirectWithMessage(res, "/instructor", getInstructorReturnParams(req, { error: error.message }));
       }
       next(error);
     }
@@ -1542,10 +1722,10 @@ app.post("/instructor/rosters/students", requireInstructorAccess, requireManaged
       studentName: req.body.studentName,
       studentEmail: req.body.studentEmail
     });
-    return redirectWithMessage(res, "/instructor", { notice: "Allowed student saved." });
+    return redirectWithMessage(res, "/instructor", getInstructorReturnParams(req, { notice: "Allowed student saved." }));
   } catch (error) {
     if (error.message === "Course and student ONYEN are required.") {
-      return redirectWithMessage(res, "/instructor", { error: error.message });
+      return redirectWithMessage(res, "/instructor", getInstructorReturnParams(req, { error: error.message }));
     }
     next(error);
   }
@@ -1555,13 +1735,13 @@ app.post("/instructor/rosters/students/:studentId/remove", requireInstructorAcce
   try {
     const student = await getAllowedStudentById(req.params.studentId);
     if (!student || !canManageCourse(req.instructorAccess, student.course_name)) {
-      return redirectWithMessage(res, "/instructor", {
+      return redirectWithMessage(res, "/instructor", getInstructorReturnParams(req, {
         error: "Only administrators and the assigned professor can remove that student."
-      });
+      }));
     }
 
     await removeAllowedStudent(req.params.studentId);
-    return redirectWithMessage(res, "/instructor", { notice: "Allowed student removed." });
+    return redirectWithMessage(res, "/instructor", getInstructorReturnParams(req, { notice: "Allowed student removed." }));
   } catch (error) {
     next(error);
   }

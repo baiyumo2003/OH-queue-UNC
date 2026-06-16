@@ -46,16 +46,16 @@ STOR113 STOR118 STOR666
 
 Students will see these courses in the course dropdown when joining the queue.
 
-### Assign a Professor to a Course
+### Assign Professors to a Course
 
 1. Go to the staff dashboard.
 2. Find **Course professors**.
 3. Locate the course.
 4. Enter the professor's ONYEN or UNC email address.
 5. Optionally enter the professor's email address. If left blank, the app uses `<onyen>@unc.edu`.
-6. Click **Assign professor**.
+6. Click **Add professor**.
 
-If an administrator changes the assigned professor for a course, previous TA assignments for that course are cleared.
+Each course can have more than one professor. To remove a professor's access to a course, use **Remove** beside that professor in the course's professor list.
 
 ### Export Course Data
 
@@ -63,7 +63,7 @@ If an administrator changes the assigned professor for a course, previous TA ass
 2. Locate the course.
 3. Click **Export DB package**.
 
-The export downloads a JSON package containing the course's professor assignment, TA assignments, roster settings, allowed students, and queue entries.
+The export downloads a JSON package containing the course's professor assignments, TA assignments, roster settings, allowed students, and queue entries.
 
 ## Professor Workflow
 

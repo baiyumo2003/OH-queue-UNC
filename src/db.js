@@ -48,11 +48,27 @@ async function initDb() {
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS course_professors (
-      course_name TEXT PRIMARY KEY,
+      id BIGSERIAL,
+      course_name TEXT NOT NULL,
       professor_identifier TEXT NOT NULL,
       professor_email TEXT NOT NULL,
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+  `);
+
+  await pool.query(`
+    ALTER TABLE course_professors
+    DROP CONSTRAINT IF EXISTS course_professors_pkey;
+  `);
+
+  await pool.query(`
+    ALTER TABLE course_professors
+    ADD COLUMN IF NOT EXISTS id BIGSERIAL;
+  `);
+
+  await pool.query(`
+    ALTER TABLE course_professors
+    ALTER COLUMN course_name SET NOT NULL;
   `);
 
   await pool.query(`
@@ -130,6 +146,16 @@ async function initDb() {
   await pool.query(`
     CREATE INDEX IF NOT EXISTS course_professors_identifier_idx
     ON course_professors (professor_identifier);
+  `);
+
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS course_professors_id_idx
+    ON course_professors (id);
+  `);
+
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS course_professors_course_identifier_idx
+    ON course_professors (course_name, professor_identifier);
   `);
 
   await pool.query(`
