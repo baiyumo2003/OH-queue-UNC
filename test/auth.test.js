@@ -20,14 +20,14 @@ test("getExternalBaseUrl uses first forwarded host and protocol value", () => {
   const req = {
     headers: {
       "x-forwarded-proto": "https, http",
-      "x-forwarded-host": "student-queue-yumo.apps.cloudapps.unc.edu, internal-router"
+      "x-forwarded-host": "student-queue-example.apps.cloudapps.unc.edu, internal-router"
     },
     protocol: "http"
   };
 
   assert.equal(
     getExternalBaseUrl(req),
-    "https://student-queue-yumo.apps.cloudapps.unc.edu"
+    "https://student-queue-example.apps.cloudapps.unc.edu"
   );
 });
 
@@ -71,20 +71,39 @@ test("resolveUser applies role override for allowed switch user", () => {
   process.env.TRUST_PROXY_AUTH = "true";
   process.env.ALLOW_DEV_AUTH = "false";
   process.env.INSTRUCTOR_IDS = "";
-  process.env.ROLE_SWITCH_USERS = "yumo";
+  process.env.ROLE_SWITCH_USERS = "switchuser";
 
   const req = {
     headers: {
-      http_uid: "yumo",
+      http_uid: "switchuser",
       cookie: "role_override=instructor"
     }
   };
 
   const user = resolveUser(req);
-  assert.equal(user.userId, "yumo");
+  assert.equal(user.userId, "switchuser");
   assert.equal(user.baseRole, "student");
   assert.equal(user.role, "instructor");
   assert.equal(user.canSwitchRoles, true);
+});
+
+test("resolveUser does not allow role switching by default", () => {
+  process.env.TRUST_PROXY_AUTH = "true";
+  process.env.ALLOW_DEV_AUTH = "false";
+  process.env.INSTRUCTOR_IDS = "";
+  process.env.ROLE_SWITCH_USERS = "";
+
+  const req = {
+    headers: {
+      http_uid: "student1",
+      cookie: "role_override=instructor"
+    }
+  };
+
+  const user = resolveUser(req);
+  assert.equal(user.userId, "student1");
+  assert.equal(user.role, "student");
+  assert.equal(user.canSwitchRoles, false);
 });
 
 test("resolveUser prefers preferred name headers over onyen", () => {

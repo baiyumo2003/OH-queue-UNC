@@ -52,7 +52,7 @@ Optional:
 
 - `ALLOW_DEV_AUTH=true` for local development only
 - `TEST_LOGIN_ENABLED=true` to expose one-click test student/instructor accounts
-- `ROLE_SWITCH_USERS=yumo` to allow specific UNC-authenticated users to switch between student and instructor views
+- `ROLE_SWITCH_USERS` comma-separated ONYENs or email addresses allowed to switch between student and instructor views
 - `STUDENT_VIEW_KEY` and `INSTRUCTOR_VIEW_KEY` to allow authenticated users to switch views using environment-configured access keys
 - `EMAIL_NOTIFICATIONS_ENABLED=true` to send an email whenever a student joins the queue
 - `QUEUE_NOTIFICATION_RECIPIENTS` comma-separated email recipients for queue join notifications

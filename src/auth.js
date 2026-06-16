@@ -129,7 +129,7 @@ function getInstructorIds() {
 
 function getRoleSwitchUsers() {
   return new Set(
-    String(process.env.ROLE_SWITCH_USERS || "yumo")
+    String(process.env.ROLE_SWITCH_USERS || "")
       .split(",")
       .map((value) => normalizeUserId(value))
       .filter(Boolean)
