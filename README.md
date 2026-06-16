@@ -8,6 +8,8 @@ Features:
 - Students can only see their own position, wait time, and how many people are ahead of them.
 - Instructors get a separate dashboard with the full live queue and daily wait-time stats.
 - Each queue request includes a location that must be either `In person` or a UNC Zoom link.
+- Instructors can update the course name shown to students from the instructor dashboard.
+- Instructors can receive an email when a student joins the queue.
 - Queue data is stored in PostgreSQL so it survives pod restarts.
 
 ## Stack
@@ -45,6 +47,7 @@ Recommended:
 - `INSTRUCTOR_IDS` comma-separated ONYENs or email addresses allowed into `/instructor`
 - `TRUST_PROXY_AUTH=true` in CloudApps when SSO headers are being forwarded
 - `APP_BASE_URL` public route base URL, such as `https://student-queue-youronyen.apps.unc.edu`
+- `STUDENT_COURSE_NAME` initial course name shown to students before instructors change it in the dashboard
 
 Optional:
 
@@ -52,8 +55,14 @@ Optional:
 - `TEST_LOGIN_ENABLED=true` to expose one-click test student/instructor accounts
 - `ROLE_SWITCH_USERS=yumo` to allow specific UNC-authenticated users to switch between student and instructor views
 - `STUDENT_VIEW_KEY` and `INSTRUCTOR_VIEW_KEY` to allow authenticated users to switch views using environment-configured access keys
+- `EMAIL_NOTIFICATIONS_ENABLED=true` to send an email whenever a student joins the queue
+- `QUEUE_NOTIFICATION_RECIPIENTS` comma-separated email recipients for queue join notifications
+- `MAIL_FROM` sender address for queue join notifications
+- `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, and `SMTP_PASS` for outbound SMTP
 - `SSO_LOGIN_URL` override if your SSO article has you use a custom login URL
 - `SSO_LOGOUT_URL` override if your SSO article has you use a custom logout URL
+
+If `QUEUE_NOTIFICATION_RECIPIENTS` is not set, the app falls back to `INSTRUCTOR_IDS` and treats bare ONYENs as `<onyen>@unc.edu`.
 
 When `TEST_LOGIN_ENABLED=true`, these direct URLs are available:
 
@@ -149,9 +158,24 @@ oc set env deployment/student-queue \
   TRUST_PROXY_AUTH=true \
   INSTRUCTOR_IDS='youronyen,yourta' \
   QUEUE_TITLE='COMP 423 Office Hours Queue' \
+  STUDENT_COURSE_NAME='COMP 423' \
   APP_BASE_URL='https://<route-host>' \
   ALLOW_DEV_AUTH=false
 ```
+
+To enable email notifications when students join the queue, set SMTP environment variables:
+
+```bash
+oc set env deployment/student-queue \
+  EMAIL_NOTIFICATIONS_ENABLED=true \
+  QUEUE_NOTIFICATION_RECIPIENTS='youronyen@unc.edu,yourta@unc.edu' \
+  MAIL_FROM='Office Hours Queue <youronyen@unc.edu>' \
+  SMTP_HOST='relay.unc.edu' \
+  SMTP_PORT='587' \
+  SMTP_SECURE=false
+```
+
+UNC's documented mail relay can use `relay.unc.edu` on port `25` or `587` without SMTP authentication from allowed campus networks. If you use a different SMTP provider, also set `SMTP_USER` and `SMTP_PASS`.
 
 If UNC's SSO article tells you to use a custom login or logout URL, also set:
 

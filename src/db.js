@@ -28,6 +28,23 @@ async function initDb() {
   `);
 
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS app_settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
+
+  await pool.query(
+    `
+      INSERT INTO app_settings (key, value)
+      VALUES ('student_course_name', $1)
+      ON CONFLICT (key) DO NOTHING;
+    `,
+    [process.env.STUDENT_COURSE_NAME || "STOR113"]
+  );
+
+  await pool.query(`
     ALTER TABLE queue_entries
     ADD COLUMN IF NOT EXISTS meeting_location TEXT;
   `);

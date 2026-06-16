@@ -1,0 +1,40 @@
+const test = require("node:test");
+const assert = require("node:assert/strict");
+
+const { buildQueueJoinMessage, getRecipients } = require("../src/emailService");
+
+test("getRecipients prefers explicit queue notification recipients", () => {
+  process.env.QUEUE_NOTIFICATION_RECIPIENTS = "teacher@unc.edu, ta@unc.edu";
+  process.env.INSTRUCTOR_IDS = "fallback";
+
+  assert.deepEqual(getRecipients(), ["teacher@unc.edu", "ta@unc.edu"]);
+
+  delete process.env.QUEUE_NOTIFICATION_RECIPIENTS;
+});
+
+test("getRecipients falls back to instructor IDs and expands ONYENs", () => {
+  delete process.env.QUEUE_NOTIFICATION_RECIPIENTS;
+  delete process.env.INSTRUCTOR_NOTIFICATION_EMAILS;
+  delete process.env.INSTRUCTOR_EMAILS;
+  process.env.INSTRUCTOR_IDS = "teacher1, teacher2@unc.edu";
+
+  assert.deepEqual(getRecipients(), ["teacher1@unc.edu", "teacher2@unc.edu"]);
+});
+
+test("buildQueueJoinMessage includes student and dashboard details", () => {
+  const message = buildQueueJoinMessage({
+    entry: {
+      courseContext: "STOR 113",
+      helpTopic: "Need help with R syntax",
+      meetingLocation: "In person",
+      studentEmail: "student@unc.edu",
+      studentName: "Test Student"
+    },
+    instructorUrl: "https://example.com/instructor"
+  });
+
+  assert.match(message.subject, /Test Student/);
+  assert.match(message.text, /STOR 113/);
+  assert.match(message.text, /https:\/\/example\.com\/instructor/);
+  assert.match(message.html, /Need help with R syntax/);
+});
