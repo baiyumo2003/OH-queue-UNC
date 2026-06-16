@@ -554,7 +554,7 @@ function buildStatusPanel(user, activeEntry, studentCourseNames) {
         <p>You can only see your own queue position. Other students are not shown.</p>
         <p><strong>${escapeHtml(activeEntry.course_context)}</strong><br>${escapeHtml(activeEntry.help_topic)}</p>
         <p><strong>Location:</strong> ${renderMeetingLocation(activeEntry.meeting_location)}</p>
-        <form method="post" action="/queue/leave">
+        <form method="post" action="/queue/leave?view=student">
           <button class="secondary-button" type="submit">Leave queue</button>
         </form>
       </div>
@@ -565,7 +565,7 @@ function buildStatusPanel(user, activeEntry, studentCourseNames) {
     <div class="panel">
       <h2>Join the queue</h2>
       <p>Students only see their own position and how many people are ahead of them.</p>
-      <form class="stack-form" method="post" action="/queue/join">
+      <form class="stack-form" method="post" action="/queue/join?view=student">
         <label>
           Course or section
           <select name="courseContext" required>
@@ -1344,7 +1344,8 @@ function renderInstructorPage({
 
 function redirectWithMessage(res, path, params) {
   const search = new URLSearchParams(params);
-  const suffix = search.size ? `?${search.toString()}` : "";
+  const separator = String(path).includes("?") ? "&" : "?";
+  const suffix = search.size ? `${separator}${search.toString()}` : "";
   return res.redirect(`${path}${suffix}`);
 }
 
@@ -1358,6 +1359,10 @@ function getInstructorReturnParams(req, params = {}) {
     }
   }
   return returnParams;
+}
+
+function getStudentReturnPath(req) {
+  return req.query.view === "student" || req.body?.view === "student" ? "/?view=student" : "/";
 }
 
 app.get("/healthz", (_req, res) => {
@@ -1472,12 +1477,13 @@ app.get("/", async (req, res, next) => {
 });
 
 app.post("/queue/join", requireAuth, async (req, res, next) => {
+  const returnPath = getStudentReturnPath(req);
   const courseContext = String(req.body.courseContext || "").trim();
   const helpTopic = String(req.body.helpTopic || "").trim();
   const meetingLocation = normalizeMeetingLocation(req.body.meetingLocation);
 
   if (!courseContext || !helpTopic || !meetingLocation) {
-    return redirectWithMessage(res, "/", {
+    return redirectWithMessage(res, returnPath, {
       error: "Course, help topic, and a location of either In person or a valid UNC Zoom link are required."
     });
   }
@@ -1485,15 +1491,15 @@ app.post("/queue/join", requireAuth, async (req, res, next) => {
   try {
     const studentCourseNames = await getStudentCourseNames();
     if (!studentCourseNames.includes(courseContext)) {
-      return redirectWithMessage(res, "/", {
+      return redirectWithMessage(res, returnPath, {
         error: "Please choose one of the available courses."
       });
     }
 
     const rosterAccess = await isStudentAllowedForCourse(courseContext, req.user.userId, req.user.email);
     if (!rosterAccess.allowed) {
-      return redirectWithMessage(res, "/", {
-        error: "This course queue is limited to students on the course roster."
+      return redirectWithMessage(res, returnPath, {
+        error: `Join failed: ${courseContext} is restricted to students on the allowed roster. Please contact your professor or TA if you believe you should have access.`
       });
     }
 
@@ -1522,10 +1528,10 @@ app.post("/queue/join", requireAuth, async (req, res, next) => {
       console.error("Failed to send queue join notification", error);
     });
 
-    return redirectWithMessage(res, "/", { notice: "You joined the queue." });
+    return redirectWithMessage(res, returnPath, { notice: "You joined the queue." });
   } catch (error) {
     if (error?.code === "23505") {
-      return redirectWithMessage(res, "/", {
+      return redirectWithMessage(res, returnPath, {
         error: "You already have an active queue entry."
       });
     }
@@ -1534,9 +1540,10 @@ app.post("/queue/join", requireAuth, async (req, res, next) => {
 });
 
 app.post("/queue/leave", requireAuth, async (req, res, next) => {
+  const returnPath = getStudentReturnPath(req);
   try {
     await leaveQueue(req.user.userId);
-    return redirectWithMessage(res, "/", { notice: "You left the queue." });
+    return redirectWithMessage(res, returnPath, { notice: "You left the queue." });
   } catch (error) {
     next(error);
   }
