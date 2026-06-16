@@ -17,6 +17,7 @@ Staff guide: [Professor and TA User Manual](docs/professor-ta-manual.md)
 - Administrator-managed professor assignments.
 - Course-level professor and TA access.
 - Professors can manage TAs and rosters for their assigned courses.
+- Professors can choose whether they receive queue-join emails for each assigned course.
 - Course-specific email notification settings for TAs.
 - Optional course roster restrictions using imported or manually entered ONYENs.
 - Canvas gradebook CSV import using the `SIS Login ID` column.
@@ -256,7 +257,7 @@ The app creates and updates its own tables at startup:
 - `queue_entries`: student queue entries.
 - `app_settings`: dashboard-managed settings such as course choices.
 - `course_tas`: course-specific TA assignments and email notification preferences.
-- `course_professors`: administrator-assigned professors for each course.
+- `course_professors`: administrator-assigned professors for each course, including professor email notification preferences.
 - `course_roster_settings`: whether a course is restricted to the allowed-student roster.
 - `course_allowed_students`: students allowed to join roster-restricted course queues.
 
@@ -400,6 +401,8 @@ Administrators can add one or more professors to each course under **Course prof
 
 TAs can be assigned to multiple courses.
 
+Professors can choose whether to receive queue-join emails under **Professor email notifications**. The setting is course-specific, so a professor can receive emails for one course and turn them off for another.
+
 ### Manage Rosters
 
 Professors and administrators can manage allowed students under **Course rosters**:
@@ -438,7 +441,7 @@ The file is plain UTF-8 JSON and is named like `STOR113-db-package.json`. It has
 
 Important fields:
 
-- `professors`: professor ONYENs/emails assigned to the course.
+- `professors`: professor ONYENs/emails assigned to the course and each professor's queue-join email notification preference.
 - `tas`: TA ONYENs/emails and whether each TA receives queue email notifications.
 - `rosterSettings`: whether the course is restricted to the allowed-student roster.
 - `allowedStudents`: manually added or CSV-imported students allowed into roster-restricted queues.

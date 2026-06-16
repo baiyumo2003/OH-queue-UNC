@@ -20,6 +20,7 @@ const {
   getCourseProfessors,
   getProfessorCoursesFromAssignments,
   getProfessorCoursesForUser,
+  getProfessorNotificationEmailsForCourse,
   getRosterSettings,
   importAllowedStudentsFromCsv,
   isStudentAllowedForCourse,
@@ -28,6 +29,7 @@ const {
   removeAllowedStudent,
   removeCourseProfessor,
   rosterSettingsByCourse,
+  setCourseProfessorNotification,
   setRosterRestriction
 } = require("./courseAdminService");
 const { initDb } = require("./db");
@@ -709,13 +711,14 @@ function buildProfessorAssignmentPanel(studentCourseNames, courseProfessorsByCou
           : "No professor";
       const professorRows =
         professors.length === 0
-          ? '<tr><td colspan="3">No professors assigned to this course yet.</td></tr>'
+          ? '<tr><td colspan="4">No professors assigned to this course yet.</td></tr>'
           : professors
               .map(
                 (professor) => `
                   <tr>
                     <td>${escapeHtml(professor.professor_identifier)}</td>
                     <td>${escapeHtml(professor.professor_email)}</td>
+                    <td>${professor.notify_email ? "Yes" : "No"}</td>
                     <td class="action-cell">
                       <form method="post" action="/instructor/professors/remove">
                         <input type="hidden" name="courseName" value="${escapeHtml(courseName)}">
@@ -746,6 +749,7 @@ function buildProfessorAssignmentPanel(studentCourseNames, courseProfessorsByCou
                 <tr>
                   <th>Professor</th>
                   <th>Email</th>
+                  <th>Email notifications</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -761,6 +765,10 @@ function buildProfessorAssignmentPanel(studentCourseNames, courseProfessorsByCou
                 Professor email
                 <input name="professorEmail" type="email" maxlength="200" placeholder="optional; defaults to ONYEN@unc.edu">
               </label>
+              <label class="checkbox-label">
+                <input name="notifyEmail" type="checkbox" value="true" checked>
+                Send email notifications to this professor
+              </label>
               <button class="secondary-button" type="submit">Add professor</button>
             </form>
           </div>
@@ -774,6 +782,79 @@ function buildProfessorAssignmentPanel(studentCourseNames, courseProfessorsByCou
       <h2>Course professors</h2>
       <p>Administrators can assign multiple professors to each course.</p>
       <div class="course-admin-grid">${courseCards}</div>
+    </div>
+  `;
+}
+
+function buildProfessorNotificationPanel({
+  user,
+  instructorAccess,
+  managedCourseNames,
+  courseProfessorsByCourse,
+  staffView,
+  selectedProfessorIdentifier
+}) {
+  const targetIdentifier =
+    instructorAccess.isAdmin && staffView === "professor"
+      ? selectedProfessorIdentifier
+      : normalizeUserId(user?.userId || user?.email);
+
+  if (!targetIdentifier || managedCourseNames.length === 0) {
+    return "";
+  }
+
+  const rows = managedCourseNames
+    .map((courseName) => {
+      const professor = (courseProfessorsByCourse.get(courseName) || []).find(
+        (assignment) => assignment.professor_identifier === targetIdentifier
+      );
+      if (!professor) {
+        return "";
+      }
+
+      const contextFields = buildViewContextFields({ staffView, selectedProfessorIdentifier });
+      return `
+        <tr>
+          <td>${escapeHtml(courseName)}</td>
+          <td>${escapeHtml(professor.professor_email)}</td>
+          <td>${professor.notify_email ? "Yes" : "No"}</td>
+          <td class="action-cell">
+            <form method="post" action="/instructor/professors/notifications">
+              ${contextFields}
+              <input type="hidden" name="courseName" value="${escapeHtml(courseName)}">
+              <input type="hidden" name="professorIdentifier" value="${escapeHtml(professor.professor_identifier)}">
+              <label class="checkbox-label">
+                <input name="notifyEmail" type="checkbox" value="true" ${professor.notify_email ? "checked" : ""}>
+                Receive join emails
+              </label>
+              <button class="secondary-button compact-button" type="submit">Save</button>
+            </form>
+          </td>
+        </tr>
+      `;
+    })
+    .filter(Boolean)
+    .join("");
+
+  if (!rows) {
+    return "";
+  }
+
+  return `
+    <div class="panel">
+      <h2>Professor email notifications</h2>
+      <p>Choose whether this professor receives an email when a student joins the queue for each assigned course.</p>
+      <table class="data-table compact-table">
+        <thead>
+          <tr>
+            <th>Course</th>
+            <th>Email</th>
+            <th>Receiving emails</th>
+            <th>Preference</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
     </div>
   `;
 }
@@ -1308,6 +1389,14 @@ function renderInstructorPage({
 
     ${showAdminControls ? buildCourseSettingsPanel(studentCourseName) : ""}
     ${showAdminControls ? buildProfessorAssignmentPanel(studentCourseNames, courseProfessorsByCourse) : ""}
+    ${buildProfessorNotificationPanel({
+      user,
+      instructorAccess,
+      managedCourseNames: courseManagementNames,
+      courseProfessorsByCourse,
+      staffView,
+      selectedProfessorIdentifier
+    })}
     ${buildTaManagementPanel(courseManagementNames, courseTasByCourse, viewContext)}
     ${buildRosterManagementPanel(courseManagementNames, rosterSettingsByCourseMap, allowedStudentCounts, allowedStudentsByCourseMap, viewContext)}
 
@@ -1513,7 +1602,10 @@ app.post("/queue/join", requireAuth, async (req, res, next) => {
       meetingLocation
     });
 
-    const taNotificationEmails = await getNotificationEmailsForCourse(courseContext);
+    const [professorNotificationEmails, taNotificationEmails] = await Promise.all([
+      getProfessorNotificationEmailsForCourse(courseContext),
+      getNotificationEmailsForCourse(courseContext)
+    ]);
     sendQueueJoinNotification({
       entry: {
         studentId: req.user.userId,
@@ -1524,7 +1616,7 @@ app.post("/queue/join", requireAuth, async (req, res, next) => {
         meetingLocation
       },
       instructorUrl: `${getExternalBaseUrl(req)}/instructor`,
-      extraRecipients: taNotificationEmails
+      extraRecipients: [...professorNotificationEmails, ...taNotificationEmails]
     }).catch((error) => {
       console.error("Failed to send queue join notification", error);
     });
@@ -1559,7 +1651,11 @@ app.get("/instructor", requireInstructorAccess, async (req, res, next) => {
       getStudentCourseName(),
       getStudentCourseNames()
     ]);
-    const courseProfessors = instructorAccess.isAdmin ? await getCourseProfessors(studentCourseNames) : [];
+    const initialProfessorCourseNames = instructorAccess.isAdmin ? studentCourseNames : instructorAccess.managedCourseNames || [];
+    const courseProfessors =
+      instructorAccess.isAdmin || initialProfessorCourseNames.length > 0
+        ? await getCourseProfessors(initialProfessorCourseNames)
+        : [];
     const availableProfessorOptions = professorOptions(courseProfessors);
     const selectedProfessorIdentifier =
       instructorAccess.isAdmin && staffView === "professor"
@@ -1632,12 +1728,50 @@ app.post("/instructor/professors", requireInstructorAccess, requireCourseAdmin, 
     await assignCourseProfessor({
       courseName: req.body.courseName,
       professorIdentifier: req.body.professorIdentifier,
-      professorEmail: req.body.professorEmail
+      professorEmail: req.body.professorEmail,
+      notifyEmail: req.body.notifyEmail === "true"
     });
     return redirectWithMessage(res, "/instructor", { notice: "Professor assignment saved." });
   } catch (error) {
     if (error.message === "Course, professor identifier, and professor email are required.") {
       return redirectWithMessage(res, "/instructor", { error: error.message });
+    }
+    next(error);
+  }
+});
+
+app.post("/instructor/professors/notifications", requireInstructorAccess, async (req, res, next) => {
+  try {
+    const professorIdentifier = normalizeUserId(req.body.professorIdentifier);
+    const canUpdate =
+      req.instructorAccess?.isAdmin ||
+      professorIdentifier === normalizeUserId(req.user?.userId) ||
+      professorIdentifier === normalizeUserId(req.user?.email);
+
+    if (!canUpdate || !canManageCourse(req.instructorAccess, req.body.courseName)) {
+      return redirectWithMessage(res, "/instructor", getInstructorReturnParams(req, {
+        error: "Only administrators or the assigned professor can change professor email notifications."
+      }));
+    }
+
+    const updated = await setCourseProfessorNotification({
+      courseName: req.body.courseName,
+      professorIdentifier,
+      notifyEmail: req.body.notifyEmail === "true"
+    });
+
+    if (!updated) {
+      return redirectWithMessage(res, "/instructor", getInstructorReturnParams(req, {
+        error: "Professor assignment was not found."
+      }));
+    }
+
+    return redirectWithMessage(res, "/instructor", getInstructorReturnParams(req, {
+      notice: "Professor email notification preference saved."
+    }));
+  } catch (error) {
+    if (error.message === "Course and professor identifier are required.") {
+      return redirectWithMessage(res, "/instructor", getInstructorReturnParams(req, { error: error.message }));
     }
     next(error);
   }

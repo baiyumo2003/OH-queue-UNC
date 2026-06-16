@@ -7,7 +7,7 @@ This guide explains how administrators, professors, and TAs use the UNC STOR Off
 The app has three staff-facing roles:
 
 - **Administrator**: can manage course names, assign professors to courses, manage any course's TAs and roster, and export course data.
-- **Professor**: can add or remove TAs for assigned courses, decide whether each TA receives queue email notifications, manage assigned course rosters, and view assigned course queues.
+- **Professor**: can add or remove TAs for assigned courses, decide whether they or each TA receive queue email notifications, manage assigned course rosters, and view assigned course queues.
 - **TA**: can view and manage only the courses assigned to them.
 
 Students only see their own queue position, wait time, and how many people are ahead of them.
@@ -57,6 +57,8 @@ Students will see these courses in the course dropdown when joining the queue.
 
 Each course can have more than one professor. To remove a professor's access to a course, use **Remove** beside that professor in the course's professor list.
 
+When adding a professor, administrators can choose whether that professor receives an email when a student joins the queue for that course. Professors can later change their own course-specific preference under **Professor email notifications**.
+
 ### Export Course Data
 
 1. Go to **Course professors**.
@@ -68,6 +70,15 @@ The export downloads a JSON package containing the course's professor assignment
 ## Professor Workflow
 
 Professors can manage only the courses assigned to them by an administrator.
+
+### Manage Your Email Notifications
+
+1. Go to the staff dashboard.
+2. Find **Professor email notifications**.
+3. For each assigned course, check or uncheck **Receive join emails**.
+4. Click **Save**.
+
+This setting controls whether you receive an email when a student joins the queue for that course. It does not affect TA notification settings.
 
 ### Add a TA to a Course
 

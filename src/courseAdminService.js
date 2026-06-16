@@ -23,7 +23,7 @@ async function getCourseProfessors(courseNames = []) {
   const normalizedCourseNames = courseNames.map(normalizeCourseName).filter(Boolean);
   const result = await query(
     `
-      SELECT id, course_name, professor_identifier, professor_email, updated_at
+      SELECT id, course_name, professor_identifier, professor_email, notify_email, updated_at
       FROM course_professors
       WHERE $1::text[] IS NULL OR course_name = ANY($1::text[])
       ORDER BY course_name ASC, professor_identifier ASC;
@@ -92,7 +92,7 @@ async function getProfessorCoursesForUser(userId, email) {
   return result.rows.map((row) => row.course_name);
 }
 
-async function assignCourseProfessor({ courseName, professorIdentifier, professorEmail }) {
+async function assignCourseProfessor({ courseName, professorIdentifier, professorEmail, notifyEmail = true }) {
   const normalizedCourseName = normalizeCourseName(courseName);
   const normalizedIdentifier = normalizeIdentifier(professorIdentifier || professorEmail);
   const normalizedEmail = normalizeEmail(professorEmail, normalizedIdentifier);
@@ -103,18 +103,55 @@ async function assignCourseProfessor({ courseName, professorIdentifier, professo
 
   const result = await query(
     `
-      INSERT INTO course_professors (course_name, professor_identifier, professor_email, updated_at)
-      VALUES ($1, $2, $3, NOW())
+      INSERT INTO course_professors (course_name, professor_identifier, professor_email, notify_email, updated_at)
+      VALUES ($1, $2, $3, $4, NOW())
       ON CONFLICT (course_name, professor_identifier)
       DO UPDATE SET
         professor_email = EXCLUDED.professor_email,
+        notify_email = EXCLUDED.notify_email,
         updated_at = NOW()
-      RETURNING id, course_name, professor_identifier, professor_email, updated_at;
+      RETURNING id, course_name, professor_identifier, professor_email, notify_email, updated_at;
     `,
-    [normalizedCourseName, normalizedIdentifier, normalizedEmail]
+    [normalizedCourseName, normalizedIdentifier, normalizedEmail, Boolean(notifyEmail)]
   );
 
   return { professor: result.rows[0] };
+}
+
+async function setCourseProfessorNotification({ courseName, professorIdentifier, notifyEmail }) {
+  const normalizedCourseName = normalizeCourseName(courseName);
+  const normalizedIdentifier = normalizeIdentifier(professorIdentifier);
+  if (!normalizedCourseName || !normalizedIdentifier) {
+    throw new Error("Course and professor identifier are required.");
+  }
+
+  const result = await query(
+    `
+      UPDATE course_professors
+      SET notify_email = $3, updated_at = NOW()
+      WHERE course_name = $1
+        AND professor_identifier = $2
+      RETURNING id, course_name, professor_identifier, professor_email, notify_email, updated_at;
+    `,
+    [normalizedCourseName, normalizedIdentifier, Boolean(notifyEmail)]
+  );
+
+  return result.rows[0] || null;
+}
+
+async function getProfessorNotificationEmailsForCourse(courseName) {
+  const result = await query(
+    `
+      SELECT professor_email
+      FROM course_professors
+      WHERE course_name = $1
+        AND notify_email = true
+      ORDER BY professor_email ASC;
+    `,
+    [normalizeCourseName(courseName)]
+  );
+
+  return result.rows.map((row) => row.professor_email);
 }
 
 async function removeCourseProfessor({ courseName, professorIdentifier }) {
@@ -430,6 +467,7 @@ module.exports = {
   getCourseProfessors,
   getProfessorCoursesFromAssignments,
   getProfessorCoursesForUser,
+  getProfessorNotificationEmailsForCourse,
   getRosterSettings,
   importAllowedStudentsFromCsv,
   isStudentAllowedForCourse,
@@ -441,5 +479,6 @@ module.exports = {
   removeAllowedStudent,
   removeCourseProfessor,
   rosterSettingsByCourse,
+  setCourseProfessorNotification,
   setRosterRestriction
 };

@@ -72,6 +72,11 @@ async function initDb() {
   `);
 
   await pool.query(`
+    ALTER TABLE course_professors
+    ADD COLUMN IF NOT EXISTS notify_email BOOLEAN NOT NULL DEFAULT true;
+  `);
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS course_roster_settings (
       course_name TEXT PRIMARY KEY,
       restrict_to_roster BOOLEAN NOT NULL DEFAULT false,
