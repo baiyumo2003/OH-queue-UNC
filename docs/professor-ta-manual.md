@@ -8,7 +8,7 @@ The app has three staff-facing roles:
 
 - **Administrator**: can manage course names, assign professors to courses, manage any course's TAs and roster, and export course data.
 - **Professor**: can add or remove TAs for assigned courses, decide whether they or each TA receive queue email notifications, manage assigned course rosters, and view assigned course queues.
-- **TA**: can view and manage only the courses assigned to them.
+- **TA**: can view and manage only the courses assigned to them, and can choose whether to receive queue email notifications for those courses.
 
 Students only see their own queue position, wait time, and how many people are ahead of them.
 
@@ -137,6 +137,15 @@ Manual entries and imported entries both allow the student to join when roster r
 
 ## TA Workflow
 
+### Manage Your Email Notifications
+
+1. Go to the staff dashboard.
+2. Find **TA email notifications**.
+3. For each assigned course, check or uncheck **Receive join emails**.
+4. Click **Save**.
+
+This setting controls whether you receive an email when a student joins the queue for that course.
+
 ### View Assigned Course Queues
 
 1. Sign in with UNC SSO.
@@ -207,9 +216,10 @@ When a student joins the queue, the app can send an email notification.
 Email recipients can include:
 
 - Global queue notification recipients configured by the app administrator.
+- Course-specific professors whose email notification setting is enabled.
 - Course-specific TAs whose email checkbox is enabled.
 
-If a TA should not receive email notifications for a course, uncheck the email notification box when adding or updating that TA.
+Professors and TAs can update their own course-specific email preferences from the staff dashboard.
 
 ## Student View Notes
 

@@ -51,7 +51,8 @@ const {
   getNotificationEmailsForCourse,
   getTaCoursesForUser,
   groupTasByCourse,
-  removeCourseTa
+  removeCourseTa,
+  setCourseTaNotification
 } = require("./taService");
 const { escapeHtml, formatDuration, normalizeUserId } = require("./utils");
 
@@ -183,7 +184,8 @@ async function resolveInstructorAccess(user) {
       isProfessor: true,
       isTa: false,
       managedCourseNames: null,
-      professorCourseNames: []
+      professorCourseNames: [],
+      taCourseNames: []
     };
   }
 
@@ -200,7 +202,8 @@ async function resolveInstructorAccess(user) {
       isProfessor: professorCourseNames.length > 0,
       isTa: taCourseNames.length > 0,
       managedCourseNames: professorCourseNames,
-      professorCourseNames
+      professorCourseNames,
+      taCourseNames
     };
   }
 
@@ -211,7 +214,8 @@ async function resolveInstructorAccess(user) {
       isProfessor: false,
       isTa: false,
       managedCourseNames: [],
-      professorCourseNames: []
+      professorCourseNames: [],
+      taCourseNames: []
     };
   }
 
@@ -859,6 +863,68 @@ function buildProfessorNotificationPanel({
   `;
 }
 
+function buildTaNotificationPanel({ user, taCourseNames, courseTasByCourse, staffView, selectedProfessorIdentifier }) {
+  const identifiers = new Set([normalizeUserId(user?.userId), normalizeUserId(user?.email)].filter(Boolean));
+  if (identifiers.size === 0 || taCourseNames.length === 0) {
+    return "";
+  }
+
+  const rows = taCourseNames
+    .map((courseName) => {
+      const ta = (courseTasByCourse.get(courseName) || []).find((assignment) =>
+        identifiers.has(assignment.ta_identifier) || identifiers.has(normalizeUserId(assignment.ta_email))
+      );
+      if (!ta) {
+        return "";
+      }
+
+      const contextFields = buildViewContextFields({ staffView, selectedProfessorIdentifier });
+      return `
+        <tr>
+          <td>${escapeHtml(courseName)}</td>
+          <td>${escapeHtml(ta.ta_email)}</td>
+          <td>${ta.notify_email ? "Yes" : "No"}</td>
+          <td class="action-cell">
+            <form method="post" action="/instructor/tas/notifications">
+              ${contextFields}
+              <input type="hidden" name="courseName" value="${escapeHtml(courseName)}">
+              <input type="hidden" name="taIdentifier" value="${escapeHtml(ta.ta_identifier)}">
+              <label class="checkbox-label">
+                <input name="notifyEmail" type="checkbox" value="true" ${ta.notify_email ? "checked" : ""}>
+                Receive join emails
+              </label>
+              <button class="secondary-button compact-button" type="submit">Save</button>
+            </form>
+          </td>
+        </tr>
+      `;
+    })
+    .filter(Boolean)
+    .join("");
+
+  if (!rows) {
+    return "";
+  }
+
+  return `
+    <div class="panel">
+      <h2>TA email notifications</h2>
+      <p>Choose whether you receive an email when a student joins the queue for each course where you are assigned as a TA.</p>
+      <table class="data-table compact-table">
+        <thead>
+          <tr>
+            <th>Course</th>
+            <th>Email</th>
+            <th>Receiving emails</th>
+            <th>Preference</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
+}
+
 function buildTaManagementPanel(managedCourseNames, courseTasByCourse, viewContext = {}) {
   if (managedCourseNames.length === 0) {
     return "";
@@ -1327,6 +1393,7 @@ function renderInstructorPage({
   professorOptions,
   selectedProfessorIdentifier,
   managedCourseNames,
+  taCourseNames,
   notice,
   error
 }) {
@@ -1394,6 +1461,13 @@ function renderInstructorPage({
       instructorAccess,
       managedCourseNames: courseManagementNames,
       courseProfessorsByCourse,
+      staffView,
+      selectedProfessorIdentifier
+    })}
+    ${buildTaNotificationPanel({
+      user,
+      taCourseNames: taCourseNames || [],
+      courseTasByCourse,
       staffView,
       selectedProfessorIdentifier
     })}
@@ -1668,6 +1742,8 @@ app.get("/instructor", requireInstructorAccess, async (req, res, next) => {
         : instructorAccess.isAdmin
           ? studentCourseNames
           : instructorAccess.managedCourseNames || [];
+    const taCourseNames = instructorAccess.isAdmin ? [] : instructorAccess.taCourseNames || [];
+    const courseTaLoadCourseNames = uniqueCourses(managedCourseNames, taCourseNames);
     const viewCourseNames =
       instructorAccess.isAdmin && staffView === "professor" ? selectedProfessorCourseNames : instructorAccess.courseNames;
     const viewInstructorAccess =
@@ -1678,7 +1754,7 @@ app.get("/instructor", requireInstructorAccess, async (req, res, next) => {
     const [activeQueue, dashboard, courseTas, rosterSettings, allowedStudents, allowedStudentCounts] = await Promise.all([
       getActiveQueue(viewCourseNames),
       getDashboardStats(viewCourseNames),
-      getCourseTas(managedCourseNames),
+      getCourseTas(courseTaLoadCourseNames),
       getRosterSettings(rosterPreviewCourseNames),
       getAllowedStudents(rosterPreviewCourseNames),
       getAllowedStudentCounts(rosterPreviewCourseNames)
@@ -1702,6 +1778,7 @@ app.get("/instructor", requireInstructorAccess, async (req, res, next) => {
         professorOptions: availableProfessorOptions,
         selectedProfessorIdentifier,
         managedCourseNames,
+        taCourseNames,
         notice: req.query.notice,
         error: req.query.error
       })
@@ -1804,6 +1881,44 @@ app.post("/instructor/tas", requireInstructorAccess, requireManagedCourse, async
     return redirectWithMessage(res, "/instructor", getInstructorReturnParams(req, { notice: "TA assignment saved." }));
   } catch (error) {
     if (error.message === "Course, TA identifier, and TA email are required.") {
+      return redirectWithMessage(res, "/instructor", getInstructorReturnParams(req, { error: error.message }));
+    }
+    next(error);
+  }
+});
+
+app.post("/instructor/tas/notifications", requireInstructorAccess, async (req, res, next) => {
+  try {
+    const taIdentifier = normalizeUserId(req.body.taIdentifier);
+    const userIdentifiers = new Set([normalizeUserId(req.user?.userId), normalizeUserId(req.user?.email)].filter(Boolean));
+    const courseName = String(req.body.courseName || "").trim();
+    const canAccessCourse =
+      req.instructorAccess?.isAdmin || (req.instructorAccess?.courseNames || []).includes(courseName);
+    const canUpdate = req.instructorAccess?.isAdmin || userIdentifiers.has(taIdentifier);
+
+    if (!canUpdate || !canAccessCourse) {
+      return redirectWithMessage(res, "/instructor", getInstructorReturnParams(req, {
+        error: "Only administrators or the assigned TA can change TA email notifications."
+      }));
+    }
+
+    const updated = await setCourseTaNotification({
+      courseName,
+      taIdentifier,
+      notifyEmail: req.body.notifyEmail === "true"
+    });
+
+    if (!updated) {
+      return redirectWithMessage(res, "/instructor", getInstructorReturnParams(req, {
+        error: "TA assignment was not found."
+      }));
+    }
+
+    return redirectWithMessage(res, "/instructor", getInstructorReturnParams(req, {
+      notice: "TA email notification preference saved."
+    }));
+  } catch (error) {
+    if (error.message === "Course and TA identifier are required.") {
       return redirectWithMessage(res, "/instructor", getInstructorReturnParams(req, { error: error.message }));
     }
     next(error);

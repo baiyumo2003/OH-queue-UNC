@@ -18,6 +18,7 @@ Staff guide: [Professor and TA User Manual](docs/professor-ta-manual.md)
 - Course-level professor and TA access.
 - Professors can manage TAs and rosters for their assigned courses.
 - Professors can choose whether they receive queue-join emails for each assigned course.
+- TAs can choose whether they receive queue-join emails for each assigned course.
 - Course-specific email notification settings for TAs.
 - Optional course roster restrictions using imported or manually entered ONYENs.
 - Canvas gradebook CSV import using the `SIS Login ID` column.
@@ -401,7 +402,7 @@ Administrators can add one or more professors to each course under **Course prof
 
 TAs can be assigned to multiple courses.
 
-Professors can choose whether to receive queue-join emails under **Professor email notifications**. The setting is course-specific, so a professor can receive emails for one course and turn them off for another.
+Professors can choose whether to receive queue-join emails under **Professor email notifications**. TAs can do the same under **TA email notifications**. These settings are course-specific, so staff can receive emails for one course and turn them off for another.
 
 ### Manage Rosters
 

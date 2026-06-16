@@ -52,6 +52,27 @@ async function removeCourseTa(taId) {
   );
 }
 
+async function setCourseTaNotification({ courseName, taIdentifier, notifyEmail }) {
+  const normalizedCourseName = normalizeCourseName(courseName);
+  const normalizedIdentifier = normalizeTaIdentifier(taIdentifier);
+  if (!normalizedCourseName || !normalizedIdentifier) {
+    throw new Error("Course and TA identifier are required.");
+  }
+
+  const result = await query(
+    `
+      UPDATE course_tas
+      SET notify_email = $3
+      WHERE course_name = $1
+        AND ta_identifier = $2
+      RETURNING id, course_name, ta_identifier, ta_email, notify_email;
+    `,
+    [normalizedCourseName, normalizedIdentifier, Boolean(notifyEmail)]
+  );
+
+  return result.rows[0] || null;
+}
+
 async function getCourseTaById(taId) {
   const result = await query(
     `
@@ -135,5 +156,6 @@ module.exports = {
   groupTasByCourse,
   normalizeTaEmail,
   normalizeTaIdentifier,
-  removeCourseTa
+  removeCourseTa,
+  setCourseTaNotification
 };
