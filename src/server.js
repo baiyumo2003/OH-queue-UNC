@@ -507,6 +507,131 @@ function buildTaManagementPanel(studentCourseNames, courseTasByCourse) {
   `;
 }
 
+function normalizeQueueView(value) {
+  return value === "course" ? "course" : "unified";
+}
+
+function getInstructorCourseOrder(activeQueue, studentCourseNames, instructorAccess) {
+  const configuredCourses = instructorAccess.courseNames || studentCourseNames;
+  const ordered = configuredCourses.filter(Boolean);
+  const seen = new Set(ordered);
+
+  for (const entry of activeQueue) {
+    if (!seen.has(entry.course_context)) {
+      ordered.push(entry.course_context);
+      seen.add(entry.course_context);
+    }
+  }
+
+  return ordered;
+}
+
+function buildActiveQueueRows(entries, startIndex = 0) {
+  return entries
+    .map(
+      (entry, index) => `
+        <tr>
+          <td>${startIndex + index + 1}</td>
+          <td>${escapeHtml(entry.student_name)}</td>
+          <td>${escapeHtml(entry.course_context)}</td>
+          <td>${escapeHtml(entry.help_topic)}</td>
+          <td>${renderMeetingLocation(entry.meeting_location)}</td>
+          <td>${formatDuration(entry.wait_seconds)}</td>
+          <td class="action-cell">
+            <form method="post" action="/instructor/entries/${entry.id}/complete">
+              <button class="primary-button compact-button" type="submit">Mark helped</button>
+            </form>
+            <form method="post" action="/instructor/entries/${entry.id}/cancel">
+              <button class="ghost-button compact-button" type="submit">Remove</button>
+            </form>
+          </td>
+        </tr>
+      `
+    )
+    .join("");
+}
+
+function buildActiveQueueTable(entries, { emptyMessage, startIndex = 0 } = {}) {
+  const rows =
+    entries.length === 0
+      ? `<tr><td colspan="7">${escapeHtml(emptyMessage || "No active students in the queue.")}</td></tr>`
+      : buildActiveQueueRows(entries, startIndex);
+
+  return `
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Student</th>
+          <th>Course</th>
+          <th>Help topic</th>
+          <th>Location</th>
+          <th>Waiting</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+}
+
+function buildQueueViewToggle(queueView) {
+  return `
+    <div class="view-toggle" aria-label="Queue view">
+      <a class="${queueView === "unified" ? "active" : ""}" href="/instructor?queueView=unified">Joined time</a>
+      <a class="${queueView === "course" ? "active" : ""}" href="/instructor?queueView=course">By course</a>
+    </div>
+  `;
+}
+
+function buildActiveQueuePanel({ activeQueue, studentCourseNames, instructorAccess, queueView }) {
+  if (queueView === "course") {
+    const courseOrder = getInstructorCourseOrder(activeQueue, studentCourseNames, instructorAccess);
+    const grouped = new Map(courseOrder.map((courseName) => [courseName, []]));
+
+    for (const entry of activeQueue) {
+      if (!grouped.has(entry.course_context)) {
+        grouped.set(entry.course_context, []);
+      }
+      grouped.get(entry.course_context).push(entry);
+    }
+
+    const courseSections = Array.from(grouped.entries())
+      .map(([courseName, entries]) => `
+        <section class="queue-course-section">
+          <div class="course-section-heading">
+            <h3>${escapeHtml(courseName)}</h3>
+            <span class="pill">${entries.length} waiting</span>
+          </div>
+          ${buildActiveQueueTable(entries, {
+            emptyMessage: "No active students for this course."
+          })}
+        </section>
+      `)
+      .join("");
+
+    return `
+      <div class="panel">
+        <div class="panel-heading-row">
+          <h2>Active queue</h2>
+          ${buildQueueViewToggle(queueView)}
+        </div>
+        <div class="course-queue-stack">${courseSections}</div>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="panel">
+      <div class="panel-heading-row">
+        <h2>Active queue</h2>
+        ${buildQueueViewToggle(queueView)}
+      </div>
+      ${buildActiveQueueTable(activeQueue)}
+    </div>
+  `;
+}
+
 function renderInstructorPage({
   user,
   activeQueue,
@@ -515,35 +640,11 @@ function renderInstructorPage({
   studentCourseNames,
   instructorAccess,
   courseTasByCourse,
+  queueView,
   notice,
   error
 }) {
   const title = buildQueueTitle(studentCourseNames);
-  const queueRows =
-    activeQueue.length === 0
-      ? '<tr><td colspan="7">No active students in the queue.</td></tr>'
-      : activeQueue
-          .map(
-            (entry, index) => `
-              <tr>
-                <td>${index + 1}</td>
-                <td>${escapeHtml(entry.student_name)}</td>
-                <td>${escapeHtml(entry.course_context)}</td>
-                <td>${escapeHtml(entry.help_topic)}</td>
-                <td>${renderMeetingLocation(entry.meeting_location)}</td>
-                <td>${formatDuration(entry.wait_seconds)}</td>
-                <td class="action-cell">
-                  <form method="post" action="/instructor/entries/${entry.id}/complete">
-                    <button class="primary-button compact-button" type="submit">Mark helped</button>
-                  </form>
-                  <form method="post" action="/instructor/entries/${entry.id}/cancel">
-                    <button class="ghost-button compact-button" type="submit">Remove</button>
-                  </form>
-                </td>
-              </tr>
-            `
-          )
-          .join("");
 
   const completedRows =
     dashboard.completedToday.length === 0
@@ -598,23 +699,7 @@ function renderInstructorPage({
       </div>
     </div>
 
-    <div class="panel">
-      <h2>Active queue</h2>
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Student</th>
-            <th>Course</th>
-            <th>Help topic</th>
-            <th>Location</th>
-            <th>Waiting</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>${queueRows}</tbody>
-      </table>
-    </div>
+    ${buildActiveQueuePanel({ activeQueue, studentCourseNames, instructorAccess, queueView })}
 
     <div class="panel">
       <h2>Completed today</h2>
@@ -821,6 +906,7 @@ app.post("/queue/leave", requireAuth, async (req, res, next) => {
 app.get("/instructor", requireInstructorAccess, async (req, res, next) => {
   try {
     const instructorAccess = req.instructorAccess;
+    const queueView = normalizeQueueView(req.query.queueView);
     const [studentCourseName, studentCourseNames] = await Promise.all([
       getStudentCourseName(),
       getStudentCourseNames()
@@ -840,6 +926,7 @@ app.get("/instructor", requireInstructorAccess, async (req, res, next) => {
         studentCourseNames,
         instructorAccess,
         courseTasByCourse: groupTasByCourse(courseTas),
+        queueView,
         notice: req.query.notice,
         error: req.query.error
       })
