@@ -356,6 +356,7 @@ function renderLayout({ title, body, courseNames = [], notice = "", error = "" }
       <meta name="viewport" content="width=device-width, initial-scale=1">
       <title>${escapeHtml(title)}</title>
       <link rel="stylesheet" href="/styles.css">
+      <script src="/app.js" defer></script>
     </head>
     <body>
       <main class="page-shell">
