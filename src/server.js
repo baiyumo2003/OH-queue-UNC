@@ -1939,8 +1939,10 @@ app.post("/queue/join", requireAuth, handleQueueImageUpload, async (req, res, ne
         studentEmail: req.user.email,
         courseContext,
         helpTopic,
+        helpTopicHtml,
         meetingLocation,
-        imageCount: images.length
+        imageCount: images.length,
+        images
       },
       instructorUrl: `${getExternalBaseUrl(req)}/instructor`,
       extraRecipients: [...professorNotificationEmails, ...taNotificationEmails]

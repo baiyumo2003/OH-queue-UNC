@@ -53,3 +53,28 @@ test("buildQueueJoinMessage includes student and dashboard details", () => {
   assert.match(message.text, /https:\/\/example\.com\/instructor/);
   assert.match(message.html, /Need help with R syntax/);
 });
+
+test("buildQueueJoinMessage renders rich help topic html with inline images", () => {
+  const message = buildQueueJoinMessage({
+    entry: {
+      courseContext: "STOR 113",
+      helpTopic: "See pasted image",
+      helpTopicHtml: '<p><strong>See this</strong></p><img data-queue-image-index="0">',
+      images: [
+        {
+          data: Buffer.from("fake image bytes"),
+          filename: "question.jpg",
+          mimeType: "image/jpeg"
+        }
+      ],
+      meetingLocation: "In person",
+      studentEmail: "student@unc.edu",
+      studentName: "Test Student"
+    },
+    instructorUrl: "https://example.com/instructor"
+  });
+
+  assert.match(message.html, /<strong>See this<\/strong>/);
+  assert.match(message.html, /src="data:image\/jpeg;base64,/);
+  assert.match(message.html, /question\.jpg/);
+});
