@@ -451,22 +451,24 @@ function getEntryImages(entry) {
 function renderHelpTopic(entry) {
   const images = getEntryImages(entry);
   const topicHtml = sanitizeHelpTopicHtml(entry.help_topic_html, entry.help_topic);
-  const imageLinks = images
+  const imagePreviews = images
     .map((image, index) => {
       const imageId = encodeURIComponent(image.id);
       const filename = String(image.filename || "").trim();
       const label = filename ? `Image ${index + 1}: ${filename}` : `Image ${index + 1}`;
+      const src = `/instructor/entries/${encodeURIComponent(entry.id)}/images/${imageId}`;
       return `
-        <a class="attachment-link" href="/instructor/entries/${entry.id}/images/${imageId}" target="_blank" rel="noopener noreferrer">
-          ${icon("image")} ${escapeHtml(label)}
-        </a>
+        <figure class="attachment-preview">
+          <img src="${src}" alt="${escapeHtml(label)}" loading="lazy">
+          <figcaption>${escapeHtml(label)}</figcaption>
+        </figure>
       `;
     })
     .join("");
 
   return `
     <div class="help-topic-html">${topicHtml}</div>
-    ${imageLinks ? `<div class="attachment-list">${imageLinks}</div>` : ""}
+    ${imagePreviews ? `<div class="attachment-list">${imagePreviews}</div>` : ""}
   `;
 }
 
