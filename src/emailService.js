@@ -63,11 +63,12 @@ function getTransporter() {
 }
 
 function buildQueueJoinMessage({ entry, instructorUrl }) {
-  const subject = `[Office Hours Queue] ${entry.studentName} joined the queue`;
+  const courseContext = String(entry.courseContext || "Course").trim();
+  const subject = `[Office Hours Queue][${courseContext}] ${entry.studentName} joined the queue`;
   const text = [
     `${entry.studentName} joined the office hours queue.`,
     "",
-    `Course: ${entry.courseContext}`,
+    `Course: ${courseContext}`,
     `Student: ${entry.studentName}`,
     `Email: ${entry.studentEmail}`,
     `Location: ${entry.meetingLocation}`,
@@ -81,7 +82,7 @@ function buildQueueJoinMessage({ entry, instructorUrl }) {
   const html = `
     <p><strong>${escapeHtml(entry.studentName)}</strong> joined the office hours queue.</p>
     <ul>
-      <li><strong>Course:</strong> ${escapeHtml(entry.courseContext)}</li>
+      <li><strong>Course:</strong> ${escapeHtml(courseContext)}</li>
       <li><strong>Student:</strong> ${escapeHtml(entry.studentName)}</li>
       <li><strong>Email:</strong> ${escapeHtml(entry.studentEmail)}</li>
       <li><strong>Location:</strong> ${escapeHtml(entry.meetingLocation)}</li>

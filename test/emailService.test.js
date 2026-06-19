@@ -48,6 +48,7 @@ test("buildQueueJoinMessage includes student and dashboard details", () => {
   });
 
   assert.match(message.subject, /Test Student/);
+  assert.match(message.subject, /\[STOR 113\]/);
   assert.match(message.text, /STOR 113/);
   assert.match(message.text, /https:\/\/example\.com\/instructor/);
   assert.match(message.html, /Need help with R syntax/);
