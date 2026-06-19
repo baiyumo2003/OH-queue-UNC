@@ -836,7 +836,6 @@ function buildStatusPanel(user, activeEntry, studentCourseNames) {
               <div class="image-paste-dropzone" data-image-paste-dropzone>
                 Paste additional screenshots or images into the question. Your current queue position will stay the same.
               </div>
-              <div class="pasted-image-list" data-pasted-image-list aria-live="polite"></div>
             </div>
             <label>
               Location
@@ -889,7 +888,6 @@ function buildStatusPanel(user, activeEntry, studentCourseNames) {
           <div class="image-paste-dropzone" data-image-paste-dropzone>
             Paste screenshots or images into the question. They appear at the cursor and are resized automatically.
           </div>
-          <div class="pasted-image-list" data-pasted-image-list aria-live="polite"></div>
         </div>
         <label>
           Location
