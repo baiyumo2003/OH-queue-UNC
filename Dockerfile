@@ -9,6 +9,7 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 
 COPY . .
+RUN chmod -R a+r public
 
 EXPOSE 8080
 

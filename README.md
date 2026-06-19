@@ -185,6 +185,8 @@ npm test
 | `ROLE_SWITCH_USERS` | Legacy role-switch allowlist. Used as an administrator fallback only when `ADMINISTRATOR_IDS` is unset. |
 | `STUDENT_COURSE_NAME` | Initial course list before it is changed from the dashboard. Courses may be separated by commas or spaces. |
 | `DATABASE_SSL` | Set to `true` if your PostgreSQL connection requires SSL. |
+| `DIRECTORY_LOOKUP_URL` | Optional JSON endpoint template for auto-filling professor names, with `{identifier}` replaced by the ONYEN or email. Defaults to UNC Directory search. |
+| `DIRECTORY_LOOKUP_TOKEN` | Optional bearer token for `DIRECTORY_LOOKUP_URL`. |
 
 ### Development and Testing
 

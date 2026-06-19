@@ -1,234 +1,287 @@
-# Office Hours Queue: Professor and TA User Manual
+# Office Hours Queue User Guide
 
-This guide explains how administrators, professors, and TAs use the UNC STOR Office Hours Queue.
+This guide is organized by role. Use the section that matches your access level:
 
-## Roles
+- [Administrator Guide](#administrator-guide)
+- [Professor Guide](#professor-guide)
+- [TA Guide](#ta-guide)
 
-The app has three staff-facing roles:
+The site is available at:
 
-- **Administrator**: can manage course names, assign professors to courses, manage any course's TAs and roster, and export course data.
-- **Professor**: can add or remove TAs for assigned courses, decide whether they or each TA receive queue email notifications, manage assigned course rosters, and view assigned course queues.
-- **TA**: can view and manage only the courses assigned to them, and can choose whether to receive queue email notifications for those courses.
+```text
+https://storoh.unc.edu
+```
 
-Students only see their own queue position, wait time, and how many people are ahead of them.
+All users sign in with UNC SSO. Access is based on the signed-in user's ONYEN or UNC email address.
 
-## Signing In
+## Administrator Guide
 
-1. Open the queue website.
-2. Sign in with UNC SSO if prompted.
-3. After signing in, staff users should open the staff dashboard.
-4. If your account has role switching enabled, use the **Role switch** panel to enter staff view.
+Administrators manage the overall course setup. They can create the student course list, assign professors to courses, inspect professor views, manage course rosters, manage TAs for any course, and export course data.
 
-If you cannot access the staff dashboard, your ONYEN may not be configured as an administrator, professor, or TA.
+### Administrator Dashboard
 
-## Administrator Workflow
+After signing in, open the staff dashboard. Administrators see a role view switcher, course setup tools, professor assignment tools, roster controls, TA management, and queue statistics.
 
-### Change Course Names
+![Administrator dashboard overview](screenshots/administrator-dashboard.png)
 
-1. Go to the staff dashboard.
-2. Find **Student course choices**.
-3. Enter the course names students should choose from.
-4. Separate courses with commas or spaces.
+### Change the Student Course List
+
+Use **Student course choices** to control which course names students can select when joining the queue.
+
+1. Go to **Student course choices**.
+2. Enter course names separated by commas or spaces.
+3. Click **Update course choices**.
 
 Examples:
 
 ```text
-STOR113, STOR118, STOR666
+STOR113, STOR320
 ```
-
-or
 
 ```text
-STOR113 STOR118 STOR666
+STOR113 STOR320 STOR455
 ```
 
-5. Click **Update course choices**.
+If there are many courses, course-specific panels collapse so the dashboard stays manageable.
 
-Students will see these courses in the course dropdown when joining the queue.
+### Assign Professors to Courses
 
-### Assign Professors to a Course
+Use **Course professors** to assign one or more professors to each course.
 
-1. Go to the staff dashboard.
-2. Find **Course professors**.
-3. Locate the course.
-4. Enter the professor's ONYEN or UNC email address.
-5. Optionally enter the professor's email address. If left blank, the app uses `<onyen>@unc.edu`.
+![Course professor assignment](screenshots/administrator-professor-assignment.png)
+
+1. Open the course under **Course professors**.
+2. Enter the professor's ONYEN or UNC email address.
+3. The app searches UNC Directory.
+4. If exactly one directory result is found, **Professor name** and **Professor email** fill automatically.
+5. Leave **Send email notifications to this professor** checked if the professor should receive an email when a student joins that course queue.
 6. Click **Add professor**.
 
-Each course can have more than one professor. To remove a professor's access to a course, use **Remove** beside that professor in the course's professor list.
+Professor name and email normally come from UNC Directory. Manual editing requires confirmation. If UNC Directory does not return a unique result, the app warns you so you can check the ONYEN or email before adding the professor.
 
-When adding a professor, administrators can choose whether that professor receives an email when a student joins the queue for that course. Professors can later change their own course-specific preference under **Professor email notifications**.
+Each course can have multiple professors. If a professor is removed from a course, they lose access to that course's professor view.
 
-### Export Course Data
+### Use Professor View as an Administrator
 
-1. Go to **Course professors**.
-2. Locate the course.
-3. Click **Export DB package**.
+Administrators can preview course tools from a professor's perspective.
 
-The export downloads a JSON package containing the course's professor assignments, TA assignments, roster settings, allowed students, and queue entries.
+1. In **Choose working view**, select **Professor view**.
+2. Choose a professor from the professor dropdown.
+3. Click **View professor**.
 
-## Professor Workflow
+This is useful for checking whether a professor has the correct courses, TAs, roster controls, and queue view.
 
-Professors can manage only the courses assigned to them by an administrator.
+### Manage Rosters
 
-### Manage Your Email Notifications
+Administrators can control whether each course queue is open to all signed-in UNC users or restricted to an allowed roster.
 
-1. Go to the staff dashboard.
-2. Find **Professor email notifications**.
-3. For each assigned course, check or uncheck **Receive join emails**.
-4. Click **Save**.
-
-This setting controls whether you receive an email when a student joins the queue for that course. It does not affect TA notification settings.
-
-### Add a TA to a Course
-
-1. Go to the staff dashboard.
-2. Find **Course TAs**.
-3. Locate the course.
-4. Enter the TA's ONYEN or UNC email address.
-5. Optionally enter the TA's email address. If left blank, the app uses:
-
-```text
-<onyen>@unc.edu
-```
-
-6. Use the email checkbox to decide whether this TA should receive queue-join email notifications for that course.
-7. Click **Add TA**.
-
-After the TA is added, they can access the staff dashboard for that course.
-
-### Remove a TA
-
-1. Go to **Course TAs**.
-2. Locate the TA under the correct course.
-3. Click **Remove**.
-
-Removing a TA also removes their access to that course's staff queue view.
-
-### Manage Course Roster Access
+![Roster management](screenshots/roster-management.png)
 
 1. Go to **Course rosters**.
-2. Locate the course.
-3. Use **Only roster students can join** to decide whether the queue is restricted.
+2. Open the course.
+3. Check or uncheck **Only roster students can join**.
 4. Click **Save roster rule**.
 
-When roster restriction is off, any signed-in UNC student can join the course queue. When it is on, only students in the allowed-student list for that course can join.
+When roster restriction is on, students who are not on the allowed list see a join-failed message and cannot enter that course queue.
 
-### Import Students from Canvas CSV
+### Import Students from Canvas
 
-1. In Canvas, open the course.
+To import a roster from Canvas:
+
+1. Open the Canvas course.
 2. Go to **Grades**.
 3. Click **Export**.
-4. Choose **Export Entire Gradebook** to download the CSV.
-5. Go to **Course rosters** in the office hours queue.
-6. Choose the CSV file under **Import Canvas CSV**.
+4. Choose **Export Entire Gradebook**.
+5. In the queue dashboard, open **Course rosters**.
+6. Upload the CSV under **Import Canvas CSV**.
 7. Click **Import SIS Login IDs**.
 
 The app reads the `SIS Login ID` column as the student's ONYEN.
 
-### Manually Add an Allowed Student
+### Manually Add Allowed Students
 
-1. Go to **Course rosters**.
+Manual entries are useful for late adds, guests, or students missing from Canvas export.
+
+1. Open the course under **Course rosters**.
 2. Enter the student's ONYEN.
-3. Optionally enter the student's name and email.
+3. Optionally enter name and email.
 4. Click **Add allowed student**.
 
-Manual entries and imported entries both allow the student to join when roster restriction is enabled.
+### Manage TAs for Any Course
 
-## TA Workflow
+Administrators can add or remove TAs under **Course TAs**. This works the same way as the professor workflow described below.
 
-### Manage Your Email Notifications
+### Export a Course Data Package
 
-1. Go to the staff dashboard.
-2. Find **TA email notifications**.
-3. For each assigned course, check or uncheck **Receive join emails**.
-4. Click **Save**.
+Use **Export DB package** to download a JSON snapshot for one course.
 
-This setting controls whether you receive an email when a student joins the queue for that course.
+The package includes:
 
-### View Assigned Course Queues
+- Course name.
+- Professor assignments and professor email-notification settings.
+- TA assignments and TA email-notification settings.
+- Roster restriction setting.
+- Allowed student list.
+- Queue entries for that course.
 
-1. Sign in with UNC SSO.
-2. Open the staff dashboard.
-3. The dashboard will show only the courses assigned to you.
+Common uses:
 
-If you are assigned to multiple courses, you can manage all of those courses from the same dashboard.
+- Audit who had access to a course.
+- Review queue activity after office hours.
+- Share a course-specific data snapshot with another administrator.
 
-### Choose Queue View
+## Professor Guide
 
-The **Active queue** panel has two views:
+Professors manage the courses assigned to them by an administrator. A professor can view and manage assigned course queues, configure their own email notifications, add or remove TAs, manage rosters, and review course statistics.
 
-- **Joined time**: shows all students from your assigned courses in one list, sorted by when they joined.
-- **By course**: separates the queue by course. Each course is still sorted by join time.
+### Professor Dashboard
 
-Use **Joined time** when you want one global priority order.
+After signing in, open the staff dashboard. Professors see only their assigned courses.
+
+![Professor dashboard overview](screenshots/professor-dashboard.png)
+
+### Choose Queue Layout
+
+The **Active queue** panel supports two views.
+
+**Joined time** shows all assigned-course students in one first-come-first-served list.
+
+**By course** separates students into course-specific queues. Each course is still sorted by join time.
+
+Use **Joined time** when one team is serving all courses together. Use **By course** when staff are split by course.
+
+### Help a Student
+
+1. Go to **Active queue**.
+2. Review the student's name, course, help topic, location, and wait time.
+3. Meet the student in person or through the provided UNC Zoom link.
+4. Click **Mark helped** when the visit is complete.
+
+The entry moves to **Completed today**.
+
+### Remove a Student
+
+Use **Remove** only when the student should no longer be active in the queue.
+
+Good examples:
+
+- The student left without clicking **Leave queue**.
+- The student joined the wrong queue.
+- The request was resolved outside the queue.
+
+Removed entries count as students who left today.
+
+### Manage Professor Email Notifications
+
+![Email notification settings](screenshots/email-notifications.png)
+
+1. Go to **Professor email notifications**.
+2. For each assigned course, check or uncheck **Receive join emails**.
+3. Click **Save**.
+
+This setting controls whether you receive an email when a student joins that course queue. It does not affect TA email settings.
+
+### Add TAs to Your Courses
+
+Use **Course TAs** to assign TAs to your courses.
+
+1. Open the course under **Course TAs**.
+2. Enter the TA's ONYEN or UNC email address.
+3. Enter the TA email address if needed. If left blank, the app uses `<onyen>@unc.edu`.
+4. Decide whether this TA should receive queue-join emails for that course.
+5. Click **Add TA**.
+
+A TA can be assigned to multiple courses.
+
+### Remove TAs
+
+1. Go to **Course TAs**.
+2. Find the TA under the correct course.
+3. Click **Remove**.
+
+Removing a TA removes their access to that course's staff queue view.
+
+### Manage Course Rosters
+
+Professors can manage roster restrictions for assigned courses.
+
+1. Go to **Course rosters**.
+2. Open the course.
+3. Turn **Only roster students can join** on or off.
+4. Import a Canvas CSV or manually add students as needed.
+
+When restriction is enabled, only allowed students can join that course's queue.
+
+### Review Queue Statistics
+
+The dashboard includes live and daily statistics.
+
+Top summary cards show:
+
+- Waiting now.
+- Average active wait.
+- Longest active wait.
+- Helped today.
+- Average helped wait.
+- Longest helped wait.
+
+Course snapshot cards show the same information per course.
+
+## TA Guide
+
+TAs can view and manage only the courses assigned to them. They can help students, remove abandoned entries, choose queue layout, and decide whether to receive email notifications for their assigned courses.
+
+### TA Dashboard
+
+After signing in, open the staff dashboard. TAs see only assigned courses.
+
+![TA queue management](screenshots/ta-queue.png)
+
+If you cannot access the dashboard, ask the professor or administrator to check that your ONYEN or email was added under the correct course.
+
+### Choose Queue Layout
+
+Use **Joined time** for one shared first-come-first-served queue.
+
 Use **By course** when different TAs are helping different courses.
 
 ### Help a Student
 
-1. Find the student in the active queue.
-2. Review their course, help topic, location, and wait time.
-3. Meet them in person or through the provided UNC Zoom link.
-4. Click **Mark helped** when finished.
+1. Find the student in **Active queue**.
+2. Check the course, help topic, location, and wait time.
+3. Help the student.
+4. Click **Mark helped**.
 
-The entry moves to **Completed today**.
+### Remove a Student
 
-### Remove a Student from the Queue
+Use **Remove** when a student should leave the active queue without being marked helped.
 
-Use **Remove** only when a student should no longer be active in the queue, for example:
+Examples:
 
-- They left without using the **Leave queue** button.
-- They joined by mistake.
-- Their request was resolved outside the queue.
+- The student is no longer present.
+- The student joined the wrong course queue.
+- The student no longer needs help.
 
-Removed entries are counted as students who left today.
+### Manage TA Email Notifications
 
-## Dashboard Statistics
+1. Go to **TA email notifications**.
+2. For each assigned course, check or uncheck **Receive join emails**.
+3. Click **Save**.
 
-The dashboard includes live and daily statistics.
+This setting is course-specific. You can receive emails for one assigned course and turn them off for another.
 
-### Top Summary Cards
+### What TAs Cannot Do
 
-- **Waiting now**: number of active students currently in the queue.
-- **Avg active wait**: average wait time for students still waiting.
-- **Longest active wait**: longest current wait among active students.
-- **Helped today**: number of students marked helped today.
-- **Avg helped wait**: average wait time for completed visits today.
-- **Longest helped wait**: longest completed wait time today.
+TAs cannot assign professors, export course DB packages, or manage courses they are not assigned to.
 
-### Course Snapshot
-
-Each course card shows:
-
-- Current number waiting.
-- Average active wait for that course.
-- Longest active wait for that course.
-- Number helped today.
-- Number who left today.
-- Average completed wait today.
-
-For TAs, these statistics only include assigned courses.
-
-## Email Notifications
-
-When a student joins the queue, the app can send an email notification.
-
-Email recipients can include:
-
-- Global queue notification recipients configured by the app administrator.
-- Course-specific professors whose email notification setting is enabled.
-- Course-specific TAs whose email checkbox is enabled.
-
-Professors and TAs can update their own course-specific email preferences from the staff dashboard.
-
-## Student View Notes
+## Student-Facing Notes
 
 Students can:
 
-- Choose a course from the dropdown.
+- Select a course from the dropdown.
 - Describe what they need help with.
-- Enter either **In person** or a valid UNC Zoom link.
-- See only their own position and wait information.
+- Enter **In person** or a valid UNC Zoom link.
+- See their own queue position and wait time.
 - Leave the queue before being helped.
 
 Students cannot see the full queue or other students' names.
@@ -237,52 +290,47 @@ Students cannot see the full queue or other students' names.
 
 Before office hours:
 
-1. Confirm the course list is correct.
-2. Confirm TAs are assigned to the correct courses.
-3. Confirm email notification settings are correct.
-4. Ask each TA to sign in once and verify that their assigned courses appear.
+1. Confirm course names are correct.
+2. Confirm professors and TAs are assigned to the right courses.
+3. Confirm roster restrictions are correct.
+4. Confirm email notification settings.
 
 During office hours:
 
 1. Keep the staff dashboard open.
-2. Use **Joined time** for first-come-first-served support.
-3. Use **By course** when staffing is split by course.
-4. Mark students helped as soon as their visit is complete.
-5. Remove abandoned or mistaken entries.
+2. Use **Joined time** or **By course** based on staffing.
+3. Mark students helped as soon as each visit is complete.
+4. Remove abandoned or mistaken entries.
 
 After office hours:
 
 1. Review **Completed today**.
-2. Review average and longest wait times.
-3. Adjust staffing or course assignments if wait times are too high.
+2. Review wait-time statistics.
+3. Adjust staffing or course setup if wait times are high.
 
 ## Troubleshooting
 
-### A TA cannot access the staff dashboard
+### A professor cannot access a course
 
-Check that the TA was added under the correct course and that the ONYEN or email address was entered correctly.
+Ask an administrator to confirm the professor is assigned under **Course professors** for that course.
 
-### A TA can access the dashboard but cannot see a course
+### A TA cannot access the dashboard
 
-The TA is probably not assigned to that specific course. A professor should add the TA under that course.
+Ask a professor or administrator to confirm the TA is assigned under **Course TAs** with the correct ONYEN or email.
 
-### A TA did not receive an email
+### A student cannot join a restricted course
+
+Check **Course rosters** and confirm the student's ONYEN appears in the allowed-student list. For Canvas imports, confirm the CSV came from **Grades > Export > Export Entire Gradebook** and includes `SIS Login ID`.
+
+### A staff member is not receiving email
 
 Check:
 
-1. The TA's email address is correct.
-2. The email notification checkbox is enabled for that course.
-3. The student joined the course assigned to that TA.
-4. Global email notifications are enabled for the app.
+- Their professor or TA email address is correct.
+- Their course-specific email checkbox is enabled.
+- The student joined the course assigned to that professor or TA.
+- Email notifications are enabled in the app's deployment configuration.
 
-### A student cannot join the queue
+### A professor name or email does not auto-fill
 
-Common causes:
-
-- The student is not signed in through UNC SSO.
-- The location is not `In person` or a valid `https://unc.zoom.us/...` link.
-- The student already has an active queue entry.
-
-### The wrong course names appear
-
-A professor should update **Student course choices** from the staff dashboard.
+The app uses UNC Directory for professor lookup. Confirm the ONYEN or email is correct and that UNC Directory returns exactly one result. If the app cannot find a unique result, it warns the administrator instead of saving a stale name or email.

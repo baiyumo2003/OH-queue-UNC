@@ -21,9 +21,11 @@ const {
   getProfessorCoursesFromAssignments,
   getProfessorCoursesForUser,
   getProfessorNotificationEmailsForCourse,
+  getProfessorProfile,
   getRosterSettings,
   importAllowedStudentsFromCsv,
   isStudentAllowedForCourse,
+  normalizeEmail,
   professorOptions,
   professorsByCourse,
   removeAllowedStudent,
@@ -32,6 +34,7 @@ const {
   setCourseProfessorNotification,
   setRosterRestriction
 } = require("./courseAdminService");
+const { lookupDirectoryUser } = require("./directoryLookupService");
 const { initDb } = require("./db");
 const { sendQueueJoinNotification } = require("./emailService");
 const {
@@ -488,7 +491,7 @@ function buildStaffViewSwitcher({ staffView, professorOptions: options = [], sel
                           <option value="${escapeHtml(option.professor_identifier)}" ${
                             option.professor_identifier === selectedProfessorIdentifier ? "selected" : ""
                           }>
-                            ${escapeHtml(option.professor_identifier)} (${option.courseNames.length} course${option.courseNames.length === 1 ? "" : "s"})
+                            ${escapeHtml(option.professor_name || option.professor_identifier)} (${option.courseNames.length} course${option.courseNames.length === 1 ? "" : "s"})
                           </option>
                         `
                       )
@@ -716,11 +719,12 @@ function buildProfessorAssignmentPanel(studentCourseNames, courseProfessorsByCou
           : "No professor";
       const professorRows =
         professors.length === 0
-          ? '<tr><td colspan="4">No professors assigned to this course yet.</td></tr>'
+          ? '<tr><td colspan="5">No professors assigned to this course yet.</td></tr>'
           : professors
               .map(
                 (professor) => `
                   <tr>
+                    <td>${escapeHtml(professor.professor_name || professor.professor_identifier)}</td>
                     <td>${escapeHtml(professor.professor_identifier)}</td>
                     <td>${escapeHtml(professor.professor_email)}</td>
                     <td>${professor.notify_email ? "Yes" : "No"}</td>
@@ -752,6 +756,7 @@ function buildProfessorAssignmentPanel(studentCourseNames, courseProfessorsByCou
             <table class="data-table compact-table">
               <thead>
                 <tr>
+                  <th>Name</th>
                   <th>Professor</th>
                   <th>Email</th>
                   <th>Email notifications</th>
@@ -760,15 +765,20 @@ function buildProfessorAssignmentPanel(studentCourseNames, courseProfessorsByCou
               </thead>
               <tbody>${professorRows}</tbody>
             </table>
-            <form class="stack-form ta-form" method="post" action="/instructor/professors">
+            <form class="stack-form professor-form" method="post" action="/instructor/professors">
               <input type="hidden" name="courseName" value="${escapeHtml(courseName)}">
               <label>
                 Professor ONYEN or email
-                <input name="professorIdentifier" maxlength="120" placeholder="onyen or onyen@unc.edu" required>
+                <input name="professorIdentifier" maxlength="120" placeholder="onyen or onyen@unc.edu" data-professor-identifier required>
+              </label>
+              <p class="lookup-status" data-professor-lookup-status aria-live="polite"></p>
+              <label>
+                Professor name
+                <input name="professorName" maxlength="200" placeholder="auto-filled from UNC Directory when available" data-professor-name readonly>
               </label>
               <label>
                 Professor email
-                <input name="professorEmail" type="email" maxlength="200" placeholder="optional; defaults to ONYEN@unc.edu">
+                <input name="professorEmail" type="email" maxlength="200" placeholder="auto-filled from UNC Directory when available" data-professor-email readonly>
               </label>
               <label class="checkbox-label">
                 <input name="notifyEmail" type="checkbox" value="true" checked>
@@ -1717,6 +1727,28 @@ app.post("/queue/leave", requireAuth, async (req, res, next) => {
   }
 });
 
+app.get("/api/professors/lookup", requireInstructorAccess, requireCourseAdmin, async (req, res, next) => {
+  try {
+    const rawIdentifier = String(req.query.identifier || "").trim().toLowerCase();
+    const professorIdentifier = normalizeUserId(rawIdentifier);
+    if (!professorIdentifier) {
+      return res.status(400).json({ error: "Professor ONYEN or email is required." });
+    }
+
+    const directoryProfile = await lookupDirectoryUser(rawIdentifier);
+    const directoryMatched = Boolean(directoryProfile?.displayName || directoryProfile?.email);
+
+    return res.json({
+      found: directoryMatched,
+      professorIdentifier,
+      professorName: directoryProfile?.displayName || "",
+      professorEmail: directoryProfile?.email || (directoryMatched ? normalizeEmail("", professorIdentifier) : "")
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.get("/instructor", requireInstructorAccess, async (req, res, next) => {
   try {
     const instructorAccess = req.instructorAccess;
@@ -1806,6 +1838,7 @@ app.post("/instructor/professors", requireInstructorAccess, requireCourseAdmin, 
     await assignCourseProfessor({
       courseName: req.body.courseName,
       professorIdentifier: req.body.professorIdentifier,
+      professorName: req.body.professorName,
       professorEmail: req.body.professorEmail,
       notifyEmail: req.body.notifyEmail === "true"
     });

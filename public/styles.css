@@ -88,6 +88,22 @@ body {
   object-fit: contain;
 }
 
+.lookup-status {
+  min-height: 1.2rem;
+  margin: -0.35rem 0 0.2rem;
+  color: #64748b;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.lookup-status[data-tone="success"] {
+  color: #176b43;
+}
+
+.lookup-status[data-tone="warning"] {
+  color: #9a3412;
+}
+
 .brand-copy {
   min-width: 0;
 }
