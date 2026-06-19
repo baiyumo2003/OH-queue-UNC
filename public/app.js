@@ -341,6 +341,7 @@
         return;
       }
       const pastedImages = [];
+      const existingImageCount = Number(editor.dataset.existingImageCount || 0);
       const maxPastedImages = 5;
       const maxImageSide = 1200;
       const jpegQuality = 0.82;
@@ -354,8 +355,8 @@
         });
 
         htmlInput.value = cleanClone.innerHTML.trim();
-        textInput.value = editor.innerText.trim() || (pastedImages.length > 0 ? "[Image attached]" : "");
-        if (textInput.value || pastedImages.length > 0) {
+        textInput.value = editor.innerText.trim() || (existingImageCount + pastedImages.length > 0 ? "[Image attached]" : "");
+        if (textInput.value || existingImageCount + pastedImages.length > 0) {
           editor.dataset.invalid = "false";
         }
       }
@@ -479,7 +480,7 @@
           return;
         }
 
-        const remaining = maxPastedImages - pastedImages.length;
+        const remaining = maxPastedImages - existingImageCount - pastedImages.length;
         if (remaining <= 0) {
           window.alert(`Attach up to ${maxPastedImages} images.`);
           return;
@@ -487,7 +488,7 @@
 
         const selected = imageFiles.slice(0, remaining);
         for (let index = 0; index < selected.length; index += 1) {
-          const nextIndex = pastedImages.length;
+          const nextIndex = existingImageCount + pastedImages.length;
           const normalized = await normalizeImageFile(selected[index], nextIndex);
           const previewUrl = URL.createObjectURL(normalized);
           const item = { file: normalized, previewUrl };
@@ -550,7 +551,7 @@
 
       form.addEventListener("submit", (event) => {
         syncEditorFields();
-        if (!textInput.value && pastedImages.length === 0) {
+        if (!textInput.value && existingImageCount + pastedImages.length === 0) {
           event.preventDefault();
           editor.focus();
           editor.dataset.invalid = "true";

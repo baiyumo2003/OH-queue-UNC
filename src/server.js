@@ -44,9 +44,11 @@ const {
   getDashboardStats,
   getQueueEntryForStaff,
   getQueueEntryImage,
+  getStudentQueueEntryImage,
   getStudentActiveEntry,
   joinQueue,
-  leaveQueue
+  leaveQueue,
+  updateStudentActiveEntry
 } = require("./queueService");
 const { buildQueueTitle, getStudentCourseName, getStudentCourseNames, setStudentCourseName } = require("./settingsService");
 const {
@@ -455,7 +457,11 @@ function getEntryImages(entry) {
   return [];
 }
 
-function renderHelpTopic(entry) {
+function buildEntryImageUrl(entryId, imageId, imageRouteBase = "/instructor/entries") {
+  return `${imageRouteBase}/${encodeURIComponent(entryId)}/images/${encodeURIComponent(imageId)}`;
+}
+
+function renderHelpTopic(entry, { imageRouteBase = "/instructor/entries" } = {}) {
   const images = getEntryImages(entry);
   let topicHtml = sanitizeHelpTopicHtml(entry.help_topic_html, entry.help_topic);
   const usedImageIndexes = new Set();
@@ -466,20 +472,18 @@ function renderHelpTopic(entry) {
       return "";
     }
     usedImageIndexes.add(index);
-    const imageId = encodeURIComponent(image.id);
     const filename = String(image.filename || "").trim();
     const label = filename ? `Image ${index + 1}: ${filename}` : `Image ${index + 1}`;
-    const src = `/instructor/entries/${encodeURIComponent(entry.id)}/images/${imageId}`;
+    const src = buildEntryImageUrl(entry.id, image.id, imageRouteBase);
     return `<img src="${src}" alt="${escapeHtml(label)}" loading="lazy">`;
   });
   const imagePreviews = images
     .map((image, index) => ({ image, index }))
     .filter(({ index }) => !usedImageIndexes.has(index))
     .map(({ image, index }) => {
-      const imageId = encodeURIComponent(image.id);
       const filename = String(image.filename || "").trim();
       const label = filename ? `Image ${index + 1}: ${filename}` : `Image ${index + 1}`;
-      const src = `/instructor/entries/${encodeURIComponent(entry.id)}/images/${imageId}`;
+      const src = buildEntryImageUrl(entry.id, image.id, imageRouteBase);
       return `
         <figure class="attachment-preview">
           <img src="${src}" alt="${escapeHtml(label)}" loading="lazy">
@@ -493,6 +497,39 @@ function renderHelpTopic(entry) {
     <div class="help-topic-html">${topicHtml}</div>
     ${imagePreviews ? `<div class="attachment-list">${imagePreviews}</div>` : ""}
   `;
+}
+
+function renderStudentEditableHelpTopic(entry) {
+  const images = getEntryImages(entry);
+  const usedImageIndexes = new Set();
+  let topicHtml = sanitizeHelpTopicHtml(entry.help_topic_html, entry.help_topic);
+
+  topicHtml = topicHtml.replace(/<img data-queue-image-index="(\d+)">/g, (_match, indexValue) => {
+    const index = Number(indexValue);
+    const image = images[index];
+    if (!image) {
+      return "";
+    }
+
+    usedImageIndexes.add(index);
+    const filename = String(image.filename || "").trim();
+    const label = filename ? `Image ${index + 1}: ${filename}` : `Image ${index + 1}`;
+    const src = buildEntryImageUrl(entry.id, image.id, "/queue/entries");
+    return `<img class="rich-editor-inline-image" src="${src}" alt="${escapeHtml(label)}" data-queue-image-index="${index}">`;
+  });
+
+  const detachedImages = images
+    .map((image, index) => ({ image, index }))
+    .filter(({ index }) => !usedImageIndexes.has(index))
+    .map(({ image, index }) => {
+      const filename = String(image.filename || "").trim();
+      const label = filename ? `Image ${index + 1}: ${filename}` : `Image ${index + 1}`;
+      const src = buildEntryImageUrl(entry.id, image.id, "/queue/entries");
+      return `<img class="rich-editor-inline-image" src="${src}" alt="${escapeHtml(label)}" data-queue-image-index="${index}">`;
+    })
+    .join("");
+
+  return `${topicHtml}${detachedImages}`;
 }
 
 function icon(name) {
@@ -743,8 +780,9 @@ function buildStatusPanel(user, activeEntry, studentCourseNames) {
   if (activeEntry) {
     const peopleAhead = Math.max(0, Number(activeEntry.queue_position || 1) - 1);
     const imageCount = getEntryImages(activeEntry).length;
+    const editableHelpTopic = renderStudentEditableHelpTopic(activeEntry);
     return `
-      <div class="panel">
+      <div class="panel" id="student-queue-card">
         <h2>Your place in line</h2>
         <div class="stat-grid">
           <div class="stat-card">
@@ -761,12 +799,57 @@ function buildStatusPanel(user, activeEntry, studentCourseNames) {
           </div>
         </div>
         <p>You can only see your own queue position. Other students are not shown.</p>
-        <p><strong>${escapeHtml(activeEntry.course_context)}</strong><br>${escapeHtml(activeEntry.help_topic)}</p>
-        ${imageCount > 0 ? `<p><strong>Images:</strong> ${imageCount} attached</p>` : ""}
-        <p><strong>Location:</strong> ${renderMeetingLocation(activeEntry.meeting_location)}</p>
-        <form method="post" action="/queue/leave?view=student">
-          <button class="secondary-button" type="submit">Leave queue</button>
-        </form>
+        <div class="student-request-preview">
+          <div class="panel-heading-row compact-heading">
+            <div>
+              <p class="section-kicker">${escapeHtml(activeEntry.course_context)}</p>
+              <h3>Your submitted question</h3>
+            </div>
+            ${imageCount > 0 ? `<span class="chip">${icon("image")} ${imageCount} image${imageCount === 1 ? "" : "s"}</span>` : ""}
+          </div>
+          ${renderHelpTopic(activeEntry, { imageRouteBase: "/queue/entries" })}
+          <p><strong>Location:</strong> ${renderMeetingLocation(activeEntry.meeting_location)}</p>
+        </div>
+        <details class="edit-queue-details">
+          <summary>Edit your request</summary>
+          <form class="stack-form" method="post" action="/queue/update?view=student" enctype="multipart/form-data">
+            <div class="rich-editor-field">
+              What do you need help with?
+              <div class="rich-editor-toolbar" aria-label="Formatting controls">
+                <button type="button" data-rich-command="bold" aria-label="Bold"><strong>B</strong></button>
+                <button type="button" data-rich-command="italic" aria-label="Italic"><em>I</em></button>
+                <button type="button" data-rich-command="insertUnorderedList" aria-label="Bulleted list">•</button>
+                <button type="button" data-rich-command="insertOrderedList" aria-label="Numbered list">1.</button>
+                <button type="button" data-rich-command="createLink" aria-label="Insert link">Link</button>
+              </div>
+              <div
+                class="rich-editor"
+                contenteditable="true"
+                role="textbox"
+                aria-label="Edit what you need help with"
+                data-rich-editor
+                data-existing-image-count="${imageCount}"
+                data-placeholder="Describe the issue or question.">${editableHelpTopic}</div>
+              <input type="hidden" name="helpTopic" data-rich-text>
+              <input type="hidden" name="helpTopicHtml" data-rich-html>
+              <input class="visually-hidden" name="questionImages" type="file" accept="image/png,image/jpeg,image/gif,image/webp" multiple data-paste-images-input tabindex="-1" aria-hidden="true">
+              <div class="image-paste-dropzone" data-image-paste-dropzone>
+                Paste additional screenshots or images into the question. Your current queue position will stay the same.
+              </div>
+              <div class="pasted-image-list" data-pasted-image-list aria-live="polite"></div>
+            </div>
+            <label>
+              Location
+              <input name="meetingLocation" maxlength="500" value="${escapeHtml(activeEntry.meeting_location)}" placeholder="In person or https://unc.zoom.us/j/..." required>
+            </label>
+            <button class="primary-button" type="submit">Save changes</button>
+          </form>
+        </details>
+        <div class="button-row">
+          <form method="post" action="/queue/leave?view=student">
+            <button class="secondary-button" type="submit">Leave queue</button>
+          </form>
+        </div>
       </div>
     `;
   }
@@ -1971,6 +2054,77 @@ app.post("/queue/leave", requireAuth, async (req, res, next) => {
   try {
     await leaveQueue(req.user.userId);
     return redirectWithMessage(res, returnPath, { notice: "You left the queue." });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/queue/update", requireAuth, handleQueueImageUpload, async (req, res, next) => {
+  const returnPath = getStudentReturnPath(req);
+  const rawHelpTopicHtml = String(req.body.helpTopicHtml || "").trim();
+  const helpTopic = String(req.body.helpTopic || htmlToText(rawHelpTopicHtml)).trim();
+  const helpTopicHtml = sanitizeHelpTopicHtml(rawHelpTopicHtml, helpTopic);
+  const meetingLocation = normalizeMeetingLocation(req.body.meetingLocation);
+
+  if (!helpTopic || !meetingLocation) {
+    return redirectWithMessage(res, returnPath, {
+      error: "Help topic and a location of either In person or a valid UNC Zoom link are required."
+    });
+  }
+
+  if (helpTopic.length > 2000 || helpTopicHtml.length > 10000) {
+    return redirectWithMessage(res, returnPath, {
+      error: "Please shorten your question before saving."
+    });
+  }
+
+  try {
+    const activeEntry = await getStudentActiveEntry(req.user.userId);
+    if (!activeEntry) {
+      return redirectWithMessage(res, returnPath, {
+        error: "You do not have an active queue entry to edit."
+      });
+    }
+
+    const existingImageCount = getEntryImages(activeEntry).length;
+    const images = buildQueueImages(req.files);
+    if (existingImageCount + images.length > queueImageMaxCount) {
+      return redirectWithMessage(res, returnPath, {
+        error: `Attach up to ${queueImageMaxCount} images.`
+      });
+    }
+
+    await updateStudentActiveEntry({
+      studentId: req.user.userId,
+      helpTopic,
+      helpTopicHtml,
+      meetingLocation,
+      images
+    });
+
+    return redirectWithMessage(res, returnPath, { notice: "Your queue request was updated without changing your place in line." });
+  } catch (error) {
+    if (error?.code === "INVALID_QUEUE_IMAGES") {
+      return redirectWithMessage(res, returnPath, {
+        error: error.message
+      });
+    }
+    next(error);
+  }
+});
+
+app.get("/queue/entries/:entryId/images/:imageId", requireAuth, async (req, res, next) => {
+  try {
+    const image = await getStudentQueueEntryImage(req.params.entryId, req.params.imageId, req.user.userId);
+    if (!image) {
+      return res.status(404).send("Image not found.");
+    }
+
+    res.setHeader("Content-Type", image.mime_type);
+    res.setHeader("Content-Length", String(image.size_bytes));
+    res.setHeader("Content-Disposition", `inline; filename="${sanitizeFilename(image.filename, "queue-image")}"`);
+    res.setHeader("Cache-Control", "private, max-age=300");
+    return res.send(image.data);
   } catch (error) {
     next(error);
   }

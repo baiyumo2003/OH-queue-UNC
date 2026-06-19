@@ -145,6 +145,73 @@ async function joinQueue({
   }
 }
 
+async function updateStudentActiveEntry({
+  studentId,
+  helpTopic,
+  helpTopicHtml,
+  meetingLocation,
+  images = []
+}) {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const activeResult = await client.query(
+      `
+        SELECT id
+        FROM queue_entries
+        WHERE student_id = $1
+          AND completed_at IS NULL
+          AND cancelled_at IS NULL
+        ORDER BY joined_at ASC
+        LIMIT 1
+        FOR UPDATE;
+      `,
+      [studentId]
+    );
+
+    const entry = activeResult.rows[0];
+    if (!entry) {
+      await client.query("ROLLBACK");
+      return null;
+    }
+
+    await client.query(
+      `
+        UPDATE queue_entries
+        SET help_topic = $2,
+            help_topic_html = $3,
+            meeting_location = $4
+        WHERE id = $1;
+      `,
+      [entry.id, helpTopic, helpTopicHtml, meetingLocation]
+    );
+
+    for (const image of images) {
+      await client.query(
+        `
+          INSERT INTO queue_entry_images (
+            entry_id,
+            filename,
+            mime_type,
+            size_bytes,
+            data
+          )
+          VALUES ($1, $2, $3, $4, $5);
+        `,
+        [entry.id, image.filename, image.mimeType, image.sizeBytes, image.data]
+      );
+    }
+
+    await client.query("COMMIT");
+    return { id: entry.id };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 async function getQueueEntryImage(entryId, imageId, courseNames) {
   const courseFilter = normalizeCourseFilter(courseNames);
   const result = await query(
@@ -165,6 +232,32 @@ async function getQueueEntryImage(entryId, imageId, courseNames) {
       LIMIT 1;
     `,
     [imageId, entryId, courseFilter]
+  );
+
+  return result.rows[0] || null;
+}
+
+async function getStudentQueueEntryImage(entryId, imageId, studentId) {
+  const result = await query(
+    `
+      SELECT
+        image.id,
+        image.entry_id,
+        image.filename,
+        image.mime_type,
+        image.size_bytes,
+        image.data,
+        entry.course_context
+      FROM queue_entry_images image
+      JOIN queue_entries entry ON entry.id = image.entry_id
+      WHERE image.id = $1
+        AND image.entry_id = $2
+        AND entry.student_id = $3
+        AND entry.completed_at IS NULL
+        AND entry.cancelled_at IS NULL
+      LIMIT 1;
+    `,
+    [imageId, entryId, studentId]
   );
 
   return result.rows[0] || null;
@@ -371,7 +464,9 @@ module.exports = {
   getDashboardStats,
   getQueueEntryForStaff,
   getQueueEntryImage,
+  getStudentQueueEntryImage,
   getStudentActiveEntry,
   joinQueue,
-  leaveQueue
+  leaveQueue,
+  updateStudentActiveEntry
 };
