@@ -65,7 +65,7 @@ function getTransporter() {
 function buildQueueJoinMessage({ entry, instructorUrl }) {
   const courseContext = String(entry.courseContext || "Course").trim();
   const imageCount = Number(entry.imageCount || 0);
-  const imageLine = imageCount > 0 ? `Images: ${imageCount} uploaded` : "";
+  const imageLine = imageCount > 0 ? `Images: ${imageCount} attached` : "";
   const subject = `[Office Hours Queue][${courseContext}] ${entry.studentName} joined the queue`;
   const text = [
     `${entry.studentName} joined the office hours queue.`,
@@ -89,7 +89,7 @@ function buildQueueJoinMessage({ entry, instructorUrl }) {
       <li><strong>Student:</strong> ${escapeHtml(entry.studentName)}</li>
       <li><strong>Email:</strong> ${escapeHtml(entry.studentEmail)}</li>
       <li><strong>Location:</strong> ${escapeHtml(entry.meetingLocation)}</li>
-      ${imageCount > 0 ? `<li><strong>Images:</strong> ${imageCount} uploaded</li>` : ""}
+      ${imageCount > 0 ? `<li><strong>Images:</strong> ${imageCount} attached</li>` : ""}
     </ul>
     <p><strong>Help topic:</strong></p>
     <p>${escapeHtml(entry.helpTopic)}</p>

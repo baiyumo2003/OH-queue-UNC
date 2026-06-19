@@ -37,7 +37,7 @@ Students can:
 - Sign in through UNC SSO.
 - Join the queue for one configured course.
 - Describe what they need help with using rich text.
-- Upload up to five supporting images with their question.
+- Paste up to five supporting images into their question.
 - Enter `In person` or a valid UNC Zoom URL as their location.
 - See their own position, wait time, and number of people ahead.
 - Leave the queue before they are helped.
@@ -260,7 +260,7 @@ For formal student names, ask UNC ITS/Shibboleth to release display-name attribu
 The app creates and updates its own tables at startup:
 
 - `queue_entries`: student queue entries.
-- `queue_entry_images`: optional images uploaded with student queue entries.
+- `queue_entry_images`: optional pasted images attached to student queue entries.
 - `app_settings`: dashboard-managed settings such as course choices.
 - `course_tas`: course-specific TA assignments, TA names/emails, and email notification preferences.
 - `course_professors`: administrator-assigned professors for each course, including professor email notification preferences.
@@ -422,7 +422,7 @@ When roster restriction is off, any signed-in UNC student can join that course q
 
 ### Export Course Data
 
-Administrators can use **Export DB package** for a course to download a JSON package containing that course's professor assignments, TA assignments, roster settings, allowed students, queue entries, and uploaded queue-entry images.
+Administrators can use **Export DB package** for a course to download a JSON package containing that course's professor assignments, TA assignments, roster settings, allowed students, queue entries, and attached queue-entry images.
 
 The download is useful for:
 
@@ -453,7 +453,7 @@ Important fields:
 - `rosterSettings`: whether the course is restricted to the allowed-student roster.
 - `allowedStudents`: manually added or CSV-imported students allowed into roster-restricted queues.
 - `queueEntries`: active, completed, and cancelled queue entries for that course. Rich-text questions are stored in `help_topic_html`; plain text remains in `help_topic`.
-- `queueEntryImages`: uploaded images for queue entries. Each row includes `entry_id`, filename, MIME type, size, and `data_base64`.
+- `queueEntryImages`: pasted images attached to queue entries. Each row includes `entry_id`, filename, MIME type, size, and `data_base64`.
 
 You can read it with common tools:
 

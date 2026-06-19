@@ -123,7 +123,7 @@ The package includes:
 - Roster restriction setting.
 - Allowed student list.
 - Queue entries for that course.
-- Uploaded queue-entry images, encoded as base64 in the JSON export.
+- Attached queue-entry images, encoded as base64 in the JSON export.
 
 Common uses:
 
@@ -154,7 +154,7 @@ Use **Joined time** when one team is serving all courses together. Use **By cour
 ### Help a Student
 
 1. Go to **Active queue**.
-2. Review the student's name, course, formatted help topic, uploaded image links, location, and wait time.
+2. Review the student's name, course, formatted help topic, attached image links, location, and wait time.
 3. Meet the student in person or through the provided UNC Zoom link.
 4. Click **Mark helped** when the visit is complete.
 
@@ -252,7 +252,7 @@ Use **By course** when different TAs are helping different courses.
 ### Help a Student
 
 1. Find the student in **Active queue**.
-2. Check the course, formatted help topic, uploaded image links, location, and wait time.
+2. Check the course, formatted help topic, attached image links, location, and wait time.
 3. Help the student.
 4. Click **Mark helped**.
 

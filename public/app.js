@@ -334,9 +334,16 @@
       const form = editor.closest("form");
       const htmlInput = form?.querySelector("[data-rich-html]");
       const textInput = form?.querySelector("[data-rich-text]");
+      const pastedImageInput = form?.querySelector("[data-paste-images-input]");
+      const pastedImageList = form?.querySelector("[data-pasted-image-list]");
+      const pasteDropzone = form?.querySelector("[data-image-paste-dropzone]");
       if (!form || !htmlInput || !textInput) {
         return;
       }
+      const pastedImages = [];
+      const maxPastedImages = 5;
+      const maxImageSide = 1200;
+      const jpegQuality = 0.82;
 
       function syncEditorFields() {
         htmlInput.value = editor.innerHTML.trim();
@@ -346,8 +353,142 @@
         }
       }
 
+      function updatePastedImageInput() {
+        if (!pastedImageInput || typeof DataTransfer === "undefined") {
+          return;
+        }
+
+        const transfer = new DataTransfer();
+        pastedImages.forEach((item) => transfer.items.add(item.file));
+        pastedImageInput.files = transfer.files;
+      }
+
+      function renderPastedImages() {
+        if (!pastedImageList) {
+          return;
+        }
+
+        pastedImageList.innerHTML = "";
+        pastedImages.forEach((item, index) => {
+          const card = document.createElement("div");
+          card.className = "pasted-image-card";
+
+          const image = document.createElement("img");
+          image.src = item.previewUrl;
+          image.alt = `Pasted image ${index + 1}`;
+
+          const meta = document.createElement("span");
+          meta.textContent = `${item.file.name} · ${Math.round(item.file.size / 1024)} KB`;
+
+          const remove = document.createElement("button");
+          remove.type = "button";
+          remove.textContent = "Remove";
+          remove.addEventListener("click", () => {
+            URL.revokeObjectURL(item.previewUrl);
+            pastedImages.splice(index, 1);
+            updatePastedImageInput();
+            renderPastedImages();
+          });
+
+          card.append(image, meta, remove);
+          pastedImageList.append(card);
+        });
+      }
+
+      function fileToImage(file) {
+        return new Promise((resolve, reject) => {
+          const image = new Image();
+          const url = URL.createObjectURL(file);
+          image.onload = () => {
+            URL.revokeObjectURL(url);
+            resolve(image);
+          };
+          image.onerror = () => {
+            URL.revokeObjectURL(url);
+            reject(new Error("Could not read pasted image."));
+          };
+          image.src = url;
+        });
+      }
+
+      async function normalizeImageFile(file, index) {
+        const image = await fileToImage(file);
+        const scale = Math.min(1, maxImageSide / Math.max(image.naturalWidth, image.naturalHeight));
+        const width = Math.max(1, Math.round(image.naturalWidth * scale));
+        const height = Math.max(1, Math.round(image.naturalHeight * scale));
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const context = canvas.getContext("2d");
+        context.fillStyle = "#ffffff";
+        context.fillRect(0, 0, width, height);
+        context.drawImage(image, 0, 0, width, height);
+
+        const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", jpegQuality));
+        if (!blob) {
+          throw new Error("Could not normalize pasted image.");
+        }
+
+        return new File([blob], `pasted-image-${Date.now()}-${index + 1}.jpg`, {
+          lastModified: Date.now(),
+          type: "image/jpeg"
+        });
+      }
+
+      async function addPastedImages(files) {
+        const imageFiles = files.filter((file) => file.type.startsWith("image/"));
+        if (imageFiles.length === 0) {
+          return;
+        }
+
+        const remaining = maxPastedImages - pastedImages.length;
+        if (remaining <= 0) {
+          window.alert(`Attach up to ${maxPastedImages} images.`);
+          return;
+        }
+
+        const selected = imageFiles.slice(0, remaining);
+        for (let index = 0; index < selected.length; index += 1) {
+          const normalized = await normalizeImageFile(selected[index], pastedImages.length + index);
+          const previewUrl = URL.createObjectURL(normalized);
+          pastedImages.push({ file: normalized, previewUrl });
+        }
+
+        if (imageFiles.length > remaining) {
+          window.alert(`Only the first ${remaining} image${remaining === 1 ? "" : "s"} were attached.`);
+        }
+
+        updatePastedImageInput();
+        renderPastedImages();
+      }
+
+      function getClipboardImageFiles(event) {
+        const files = Array.from(event.clipboardData?.files || []).filter((file) => file.type.startsWith("image/"));
+        if (files.length > 0) {
+          return files;
+        }
+
+        return Array.from(event.clipboardData?.items || [])
+          .filter((item) => item.kind === "file" && item.type.startsWith("image/"))
+          .map((item) => item.getAsFile())
+          .filter(Boolean);
+      }
+
       editor.addEventListener("input", syncEditorFields);
       editor.addEventListener("blur", syncEditorFields);
+      editor.addEventListener("paste", (event) => {
+        const imageFiles = getClipboardImageFiles(event);
+        if (imageFiles.length === 0) {
+          return;
+        }
+
+        event.preventDefault();
+        addPastedImages(imageFiles).catch((error) => {
+          window.alert(error.message || "Could not attach pasted image.");
+        });
+      });
+
+      pasteDropzone?.addEventListener("click", () => editor.focus());
 
       form.querySelectorAll("[data-rich-command]").forEach((button) => {
         button.addEventListener("click", () => {

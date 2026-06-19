@@ -164,7 +164,7 @@ function buildQueueImages(files = []) {
   }
 
   if (files.length > queueImageMaxCount) {
-    const error = new Error(`Upload up to ${queueImageMaxCount} images.`);
+    const error = new Error(`Attach up to ${queueImageMaxCount} images.`);
     error.code = "INVALID_QUEUE_IMAGES";
     throw error;
   }
@@ -264,7 +264,7 @@ function handleQueueImageUpload(req, res, next) {
       const message =
         error.code === "LIMIT_FILE_SIZE"
           ? "Each image must be 3 MB or smaller."
-          : `Upload up to ${queueImageMaxCount} images.`;
+          : `Attach up to ${queueImageMaxCount} images.`;
       return redirectWithMessage(res, returnPath, { error: message });
     }
 
@@ -777,12 +777,12 @@ function buildStatusPanel(user, activeEntry, studentCourseNames) {
             data-placeholder="Describe the issue or question."></div>
           <input type="hidden" name="helpTopic" data-rich-text>
           <input type="hidden" name="helpTopicHtml" data-rich-html>
+          <input class="visually-hidden" name="questionImages" type="file" accept="image/png,image/jpeg,image/gif,image/webp" multiple data-paste-images-input tabindex="-1" aria-hidden="true">
+          <div class="image-paste-dropzone" data-image-paste-dropzone>
+            Paste screenshots or images here. Up to 5 images, normalized automatically.
+          </div>
+          <div class="pasted-image-list" data-pasted-image-list aria-live="polite"></div>
         </div>
-        <label>
-          Images
-          <input name="questionImages" type="file" accept="image/png,image/jpeg,image/gif,image/webp" multiple>
-          <span class="field-hint">Optional. Upload up to 5 images. Each image must be 3 MB or smaller.</span>
-        </label>
         <label>
           Location
           <input name="meetingLocation" maxlength="500" placeholder="In person or https://unc.zoom.us/j/..." required>

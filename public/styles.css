@@ -454,6 +454,18 @@ label {
   font-weight: 600;
 }
 
+.visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+}
+
 .field-hint {
   color: var(--ink-soft);
   font-size: 0.86rem;
@@ -503,6 +515,55 @@ label {
 .rich-editor:empty::before {
   color: #777;
   content: attr(data-placeholder);
+}
+
+.image-paste-dropzone {
+  border: 1px dashed rgba(37, 99, 235, 0.35);
+  border-radius: var(--radius);
+  padding: 0.7rem 0.85rem;
+  background: rgba(37, 99, 235, 0.045);
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.pasted-image-list {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.pasted-image-card {
+  display: grid;
+  grid-template-columns: 4.5rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.55rem;
+  border: 1px solid rgba(16, 37, 66, 0.12);
+  border-radius: var(--radius);
+  background: #ffffff;
+}
+
+.pasted-image-card img {
+  width: 4.5rem;
+  height: 3.25rem;
+  border-radius: 0.55rem;
+  object-fit: cover;
+}
+
+.pasted-image-card span {
+  min-width: 0;
+  color: var(--ink-soft);
+  font-size: 0.88rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.pasted-image-card button {
+  padding: 0.4rem 0.65rem;
+  border: 1px solid rgba(16, 37, 66, 0.16);
+  background: transparent;
+  color: var(--ink);
+  font-size: 0.85rem;
 }
 
 input,
@@ -873,6 +934,14 @@ a.secondary-button:hover {
   .data-table td {
     border: 0;
     padding: 0.3rem 0;
+  }
+
+  .pasted-image-card {
+    grid-template-columns: 4rem minmax(0, 1fr);
+  }
+
+  .pasted-image-card button {
+    grid-column: 1 / -1;
   }
 }
 
