@@ -494,12 +494,15 @@ label {
 }
 
 .rich-editor {
-  min-height: 9rem;
-  padding: 0.75rem 0.85rem;
+  min-height: 15rem;
+  max-height: 34rem;
+  overflow-y: auto;
+  padding: 0.95rem 1rem;
   border: 1px solid rgba(23, 32, 51, 0.16);
   border-radius: var(--radius);
   background: #ffffff;
   font-weight: 500;
+  line-height: 1.55;
   outline: none;
 }
 
@@ -1043,5 +1046,10 @@ a.secondary-button:hover {
   .course-metrics-grid,
   .course-metric-values {
     grid-template-columns: 1fr;
+  }
+
+  .rich-editor {
+    min-height: 12rem;
+    max-height: 28rem;
   }
 }
