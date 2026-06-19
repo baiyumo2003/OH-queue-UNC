@@ -346,7 +346,68 @@
       const maxImageSide = 1200;
       const jpegQuality = 0.82;
 
+      function getInlineImageIndexes() {
+        return new Set(
+          Array.from(editor.querySelectorAll("img[data-queue-image-index]"))
+            .map((image) => Number(image.dataset.queueImageIndex))
+            .filter((index) => Number.isInteger(index) && index >= 0)
+        );
+      }
+
+      function updatePastedImageInput() {
+        if (!pastedImageInput || typeof DataTransfer === "undefined") {
+          return;
+        }
+
+        const transfer = new DataTransfer();
+        pastedImages.forEach((item) => transfer.items.add(item.file));
+        pastedImageInput.files = transfer.files;
+      }
+
+      let renderPastedImages = () => {};
+
+      function syncPastedImagesFromEditor({ renderList = true } = {}) {
+        const inlineIndexes = getInlineImageIndexes();
+        const retainedImages = [];
+        let changed = false;
+
+        pastedImages.forEach((item) => {
+          if (inlineIndexes.has(item.queueIndex)) {
+            retainedImages.push(item);
+          } else {
+            URL.revokeObjectURL(item.previewUrl);
+            changed = true;
+          }
+        });
+
+        if (retainedImages.length !== pastedImages.length) {
+          pastedImages.splice(0, pastedImages.length, ...retainedImages);
+        }
+
+        pastedImages.forEach((item, index) => {
+          const nextQueueIndex = existingImageCount + index;
+          if (item.queueIndex === nextQueueIndex) {
+            return;
+          }
+
+          editor.querySelectorAll(`img[data-queue-image-index="${item.queueIndex}"]`).forEach((image) => {
+            image.dataset.queueImageIndex = String(nextQueueIndex);
+            image.alt = `Pasted image ${nextQueueIndex + 1}`;
+          });
+          item.queueIndex = nextQueueIndex;
+          changed = true;
+        });
+
+        if (changed) {
+          updatePastedImageInput();
+          if (renderList) {
+            renderPastedImages();
+          }
+        }
+      }
+
       function syncEditorFields() {
+        syncPastedImagesFromEditor();
         const cleanClone = editor.cloneNode(true);
         cleanClone.querySelectorAll("img[data-queue-image-index]").forEach((image) => {
           const index = image.dataset.queueImageIndex;
@@ -361,17 +422,7 @@
         }
       }
 
-      function updatePastedImageInput() {
-        if (!pastedImageInput || typeof DataTransfer === "undefined") {
-          return;
-        }
-
-        const transfer = new DataTransfer();
-        pastedImages.forEach((item) => transfer.items.add(item.file));
-        pastedImageInput.files = transfer.files;
-      }
-
-      function renderPastedImages() {
+      renderPastedImages = function renderPastedImagesList() {
         if (!pastedImageList) {
           return;
         }
@@ -394,14 +445,8 @@
           remove.addEventListener("click", () => {
             URL.revokeObjectURL(item.previewUrl);
             pastedImages.splice(index, 1);
-            editor.querySelector(`img[data-queue-image-index="${index}"]`)?.remove();
-            editor.querySelectorAll("img[data-queue-image-index]").forEach((inlineImage) => {
-              const currentIndex = Number(inlineImage.dataset.queueImageIndex);
-              if (currentIndex > index) {
-                inlineImage.dataset.queueImageIndex = String(currentIndex - 1);
-                inlineImage.alt = `Pasted image ${currentIndex}`;
-              }
-            });
+            editor.querySelectorAll(`img[data-queue-image-index="${item.queueIndex}"]`).forEach((inlineImage) => inlineImage.remove());
+            syncPastedImagesFromEditor({ renderList: false });
             updatePastedImageInput();
             renderPastedImages();
             syncEditorFields();
@@ -410,7 +455,7 @@
           card.append(image, meta, remove);
           pastedImageList.append(card);
         });
-      }
+      };
 
       function fileToImage(file) {
         return new Promise((resolve, reject) => {
@@ -480,6 +525,7 @@
           return;
         }
 
+        syncPastedImagesFromEditor();
         const remaining = maxPastedImages - existingImageCount - pastedImages.length;
         if (remaining <= 0) {
           window.alert(`Attach up to ${maxPastedImages} images.`);
@@ -491,7 +537,7 @@
           const nextIndex = existingImageCount + pastedImages.length;
           const normalized = await normalizeImageFile(selected[index], nextIndex);
           const previewUrl = URL.createObjectURL(normalized);
-          const item = { file: normalized, previewUrl };
+          const item = { file: normalized, previewUrl, queueIndex: nextIndex };
           pastedImages.push(item);
           insertInlineImage(item, nextIndex);
         }
