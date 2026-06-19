@@ -42,6 +42,7 @@ const {
   completeEntry,
   getActiveQueue,
   getDashboardStats,
+  getQueueEntryForStaff,
   getQueueEntryImage,
   getStudentActiveEntry,
   joinQueue,
@@ -208,8 +209,8 @@ function sanitizeHelpTopicHtml(inputHtml, fallbackText) {
     return `<p>${escapeHtml(String(fallbackText || "").trim()).replace(/\n/g, "<br>")}</p>`;
   }
 
-  const allowedTags = new Set(["p", "div", "br", "strong", "b", "em", "i", "u", "ul", "ol", "li", "code", "pre", "blockquote", "a"]);
-  const voidTags = new Set(["br"]);
+  const allowedTags = new Set(["p", "div", "br", "strong", "b", "em", "i", "u", "ul", "ol", "li", "code", "pre", "blockquote", "a", "img"]);
+  const voidTags = new Set(["br", "img"]);
   let output = "";
   let cursor = 0;
   const tagPattern = /<\/?[^>]+>/g;
@@ -239,6 +240,12 @@ function sanitizeHelpTopicHtml(inputHtml, fallbackText) {
               }
             } catch {
               output += "<a>";
+            }
+          } else if (tagName === "img") {
+            const indexMatch = tag.match(/\sdata-queue-image-index\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i);
+            const imageIndex = String(indexMatch?.[1] || indexMatch?.[2] || indexMatch?.[3] || "").trim();
+            if (/^\d+$/.test(imageIndex)) {
+              output += `<img data-queue-image-index="${imageIndex}">`;
             }
           } else {
             output += voidTags.has(tagName) ? `<${tagName}>` : `<${tagName}>`;
@@ -450,9 +457,25 @@ function getEntryImages(entry) {
 
 function renderHelpTopic(entry) {
   const images = getEntryImages(entry);
-  const topicHtml = sanitizeHelpTopicHtml(entry.help_topic_html, entry.help_topic);
+  let topicHtml = sanitizeHelpTopicHtml(entry.help_topic_html, entry.help_topic);
+  const usedImageIndexes = new Set();
+  topicHtml = topicHtml.replace(/<img data-queue-image-index="(\d+)">/g, (_match, indexValue) => {
+    const index = Number(indexValue);
+    const image = images[index];
+    if (!image) {
+      return "";
+    }
+    usedImageIndexes.add(index);
+    const imageId = encodeURIComponent(image.id);
+    const filename = String(image.filename || "").trim();
+    const label = filename ? `Image ${index + 1}: ${filename}` : `Image ${index + 1}`;
+    const src = `/instructor/entries/${encodeURIComponent(entry.id)}/images/${imageId}`;
+    return `<img src="${src}" alt="${escapeHtml(label)}" loading="lazy">`;
+  });
   const imagePreviews = images
-    .map((image, index) => {
+    .map((image, index) => ({ image, index }))
+    .filter(({ index }) => !usedImageIndexes.has(index))
+    .map(({ image, index }) => {
       const imageId = encodeURIComponent(image.id);
       const filename = String(image.filename || "").trim();
       const label = filename ? `Image ${index + 1}: ${filename}` : `Image ${index + 1}`;
@@ -781,7 +804,7 @@ function buildStatusPanel(user, activeEntry, studentCourseNames) {
           <input type="hidden" name="helpTopicHtml" data-rich-html>
           <input class="visually-hidden" name="questionImages" type="file" accept="image/png,image/jpeg,image/gif,image/webp" multiple data-paste-images-input tabindex="-1" aria-hidden="true">
           <div class="image-paste-dropzone" data-image-paste-dropzone>
-            Paste screenshots or images here. Up to 5 images, normalized automatically.
+            Paste screenshots or images into the question. They appear at the cursor and are resized automatically.
           </div>
           <div class="pasted-image-list" data-pasted-image-list aria-live="polite"></div>
         </div>
@@ -1364,6 +1387,7 @@ function buildActiveQueueRows(entries, startIndex = 0) {
           <td>${renderMeetingLocation(entry.meeting_location)}</td>
           <td>${formatDuration(entry.wait_seconds)}</td>
           <td class="action-cell">
+            <a class="secondary-button compact-button" href="/instructor/entries/${entry.id}/preview" target="_blank" rel="noopener noreferrer">${icon("image")} Preview</a>
             <form method="post" action="/instructor/entries/${entry.id}/complete">
               <button class="primary-button compact-button" type="submit">${icon("check")} Mark helped</button>
             </form>
@@ -1628,7 +1652,7 @@ function renderInstructorPage({
 
   const completedRows =
     dashboard.completedToday.length === 0
-      ? '<tr><td colspan="6">No completed visits yet today.</td></tr>'
+      ? '<tr><td colspan="7">No completed visits yet today.</td></tr>'
       : dashboard.completedToday
           .map(
             (entry) => `
@@ -1639,6 +1663,7 @@ function renderInstructorPage({
                 <td>${renderMeetingLocation(entry.meeting_location)}</td>
                 <td>${formatDuration(entry.wait_seconds)}</td>
                 <td>${new Date(entry.completed_at).toLocaleTimeString()}</td>
+                <td><a class="secondary-button compact-button" href="/instructor/entries/${entry.id}/preview" target="_blank" rel="noopener noreferrer">${icon("image")} Preview</a></td>
               </tr>
             `
           )
@@ -1705,6 +1730,7 @@ function renderInstructorPage({
             <th>Location</th>
             <th>Wait time</th>
             <th>Completed</th>
+            <th>Preview</th>
           </tr>
         </thead>
         <tbody>${completedRows}</tbody>
@@ -2295,6 +2321,56 @@ app.get("/instructor/courses/:courseName/export", requireInstructorAccess, requi
     res.setHeader("Content-Type", "application/json; charset=utf-8");
     res.setHeader("Content-Disposition", `attachment; filename="${safeName}-db-package.json"`);
     return res.send(JSON.stringify(payload, null, 2));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/instructor/entries/:entryId/preview", requireInstructorAccess, async (req, res, next) => {
+  try {
+    const entry = await getQueueEntryForStaff(req.params.entryId, req.instructorAccess.courseNames);
+    if (!entry) {
+      return res.status(404).send("Queue entry not found.");
+    }
+
+    const status = entry.completed_at ? "Completed" : entry.cancelled_at ? "Removed" : "Active";
+    const body = `
+      <div class="panel queue-entry-preview">
+        <div class="panel-heading-row">
+          <div>
+            <p class="section-kicker">${escapeHtml(status)} queue entry</p>
+            <h2>${escapeHtml(entry.student_name)}</h2>
+            <p class="queue-meta">${escapeHtml(entry.course_context)} · ${formatDuration(entry.wait_seconds)}</p>
+          </div>
+          <a class="ghost-button" href="/instructor">${icon("layers")} Staff dashboard</a>
+        </div>
+        <dl class="preview-meta-grid">
+          <div>
+            <dt>Email</dt>
+            <dd>${escapeHtml(entry.student_email)}</dd>
+          </div>
+          <div>
+            <dt>Location</dt>
+            <dd>${renderMeetingLocation(entry.meeting_location)}</dd>
+          </div>
+          <div>
+            <dt>Joined</dt>
+            <dd>${new Date(entry.joined_at).toLocaleString()}</dd>
+          </div>
+        </dl>
+        <div class="preview-topic">
+          ${renderHelpTopic(entry)}
+        </div>
+      </div>
+    `;
+
+    return res.send(
+      renderLayout({
+        title: `${entry.student_name} queue preview`,
+        body,
+        courseNames: [entry.course_context]
+      })
+    );
   } catch (error) {
     next(error);
   }

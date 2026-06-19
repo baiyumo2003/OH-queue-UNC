@@ -155,8 +155,9 @@ Use **Joined time** when one team is serving all courses together. Use **By cour
 
 1. Go to **Active queue**.
 2. Review the student's name, course, formatted help topic, inline attached images, location, and wait time.
-3. Meet the student in person or through the provided UNC Zoom link.
-4. Click **Mark helped** when the visit is complete.
+3. Use **Preview** when you want a larger read-only view that matches the student's formatting.
+4. Meet the student in person or through the provided UNC Zoom link.
+5. Click **Mark helped** when the visit is complete.
 
 The entry moves to **Completed today**.
 
@@ -253,8 +254,9 @@ Use **By course** when different TAs are helping different courses.
 
 1. Find the student in **Active queue**.
 2. Check the course, formatted help topic, inline attached images, location, and wait time.
-3. Help the student.
-4. Click **Mark helped**.
+3. Use **Preview** when you want a larger read-only view that matches the student's formatting.
+4. Help the student.
+5. Click **Mark helped**.
 
 ### Remove a Student
 

@@ -346,9 +346,16 @@
       const jpegQuality = 0.82;
 
       function syncEditorFields() {
-        htmlInput.value = editor.innerHTML.trim();
-        textInput.value = editor.innerText.trim();
-        if (textInput.value) {
+        const cleanClone = editor.cloneNode(true);
+        cleanClone.querySelectorAll("img[data-queue-image-index]").forEach((image) => {
+          const index = image.dataset.queueImageIndex;
+          image.removeAttribute("src");
+          image.setAttribute("data-queue-image-index", index);
+        });
+
+        htmlInput.value = cleanClone.innerHTML.trim();
+        textInput.value = editor.innerText.trim() || (pastedImages.length > 0 ? "[Image attached]" : "");
+        if (textInput.value || pastedImages.length > 0) {
           editor.dataset.invalid = "false";
         }
       }
@@ -386,8 +393,17 @@
           remove.addEventListener("click", () => {
             URL.revokeObjectURL(item.previewUrl);
             pastedImages.splice(index, 1);
+            editor.querySelector(`img[data-queue-image-index="${index}"]`)?.remove();
+            editor.querySelectorAll("img[data-queue-image-index]").forEach((inlineImage) => {
+              const currentIndex = Number(inlineImage.dataset.queueImageIndex);
+              if (currentIndex > index) {
+                inlineImage.dataset.queueImageIndex = String(currentIndex - 1);
+                inlineImage.alt = `Pasted image ${currentIndex}`;
+              }
+            });
             updatePastedImageInput();
             renderPastedImages();
+            syncEditorFields();
           });
 
           card.append(image, meta, remove);
@@ -435,6 +451,28 @@
         });
       }
 
+      function insertInlineImage(item, index) {
+        const image = document.createElement("img");
+        image.src = item.previewUrl;
+        image.alt = `Pasted image ${index + 1}`;
+        image.dataset.queueImageIndex = String(index);
+        image.className = "rich-editor-inline-image";
+        editor.focus();
+        const selection = window.getSelection();
+        if (selection?.rangeCount) {
+          const range = selection.getRangeAt(0);
+          range.deleteContents();
+          range.insertNode(image);
+          range.setStartAfter(image);
+          range.setEndAfter(image);
+          selection.removeAllRanges();
+          selection.addRange(range);
+        } else {
+          editor.append(image);
+        }
+        editor.append(document.createTextNode(" "));
+      }
+
       async function addPastedImages(files) {
         const imageFiles = files.filter((file) => file.type.startsWith("image/"));
         if (imageFiles.length === 0) {
@@ -449,9 +487,12 @@
 
         const selected = imageFiles.slice(0, remaining);
         for (let index = 0; index < selected.length; index += 1) {
-          const normalized = await normalizeImageFile(selected[index], pastedImages.length + index);
+          const nextIndex = pastedImages.length;
+          const normalized = await normalizeImageFile(selected[index], nextIndex);
           const previewUrl = URL.createObjectURL(normalized);
-          pastedImages.push({ file: normalized, previewUrl });
+          const item = { file: normalized, previewUrl };
+          pastedImages.push(item);
+          insertInlineImage(item, nextIndex);
         }
 
         if (imageFiles.length > remaining) {
@@ -460,6 +501,7 @@
 
         updatePastedImageInput();
         renderPastedImages();
+        syncEditorFields();
       }
 
       function getClipboardImageFiles(event) {
@@ -508,7 +550,7 @@
 
       form.addEventListener("submit", (event) => {
         syncEditorFields();
-        if (!textInput.value) {
+        if (!textInput.value && pastedImages.length === 0) {
           event.preventDefault();
           editor.focus();
           editor.dataset.invalid = "true";

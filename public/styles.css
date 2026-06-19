@@ -517,6 +517,17 @@ label {
   content: attr(data-placeholder);
 }
 
+.rich-editor-inline-image {
+  display: block;
+  max-width: min(100%, 34rem);
+  max-height: 26rem;
+  margin: 0.8rem 0;
+  border: 1px solid rgba(16, 37, 66, 0.14);
+  border-radius: var(--radius);
+  background: #ffffff;
+  object-fit: contain;
+}
+
 .image-paste-dropzone {
   border: 1px dashed rgba(37, 99, 235, 0.35);
   border-radius: var(--radius);
@@ -830,6 +841,17 @@ a.secondary-button:hover {
   max-width: 36rem;
 }
 
+.help-topic-html img {
+  display: block;
+  max-width: min(100%, 34rem);
+  max-height: 26rem;
+  margin: 0.8rem 0;
+  border: 1px solid rgba(16, 37, 66, 0.14);
+  border-radius: var(--radius);
+  background: #ffffff;
+  object-fit: contain;
+}
+
 .help-topic-html p,
 .help-topic-html div,
 .help-topic-html ul,
@@ -871,6 +893,49 @@ a.secondary-button:hover {
   font-size: 0.78rem;
   font-weight: 700;
   overflow-wrap: anywhere;
+}
+
+.queue-entry-preview .help-topic-html {
+  max-width: 64rem;
+  font-size: 1.05rem;
+  line-height: 1.65;
+}
+
+.queue-entry-preview .help-topic-html img {
+  max-width: min(100%, 56rem);
+  max-height: 42rem;
+}
+
+.preview-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 0.85rem;
+  margin: 1rem 0;
+}
+
+.preview-meta-grid div {
+  padding: 0.8rem;
+  border: 1px solid rgba(16, 37, 66, 0.1);
+  border-radius: var(--radius);
+  background: #f8fafc;
+}
+
+.preview-meta-grid dt {
+  color: var(--ink-soft);
+  font-size: 0.76rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.preview-meta-grid dd {
+  margin: 0.25rem 0 0;
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.preview-topic {
+  padding-top: 1rem;
+  border-top: 1px solid rgba(16, 37, 66, 0.08);
 }
 
 .action-cell {

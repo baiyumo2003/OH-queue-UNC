@@ -170,6 +170,43 @@ async function getQueueEntryImage(entryId, imageId, courseNames) {
   return result.rows[0] || null;
 }
 
+async function getQueueEntryForStaff(entryId, courseNames) {
+  const courseFilter = normalizeCourseFilter(courseNames);
+  const result = await query(
+    `
+      SELECT
+        entry.id,
+        entry.student_id,
+        entry.student_name,
+        entry.student_email,
+        entry.course_context,
+        entry.help_topic,
+        entry.help_topic_html,
+        entry.meeting_location,
+        entry.joined_at,
+        entry.completed_at,
+        entry.cancelled_at,
+        EXTRACT(EPOCH FROM (COALESCE(entry.completed_at, entry.cancelled_at, NOW()) - entry.joined_at))::INT AS wait_seconds,
+        COALESCE(
+          jsonb_agg(
+            jsonb_build_object('id', image.id, 'filename', image.filename, 'mimeType', image.mime_type)
+            ORDER BY image.id ASC
+          ) FILTER (WHERE image.id IS NOT NULL),
+          '[]'::jsonb
+        ) AS images
+      FROM queue_entries entry
+      LEFT JOIN queue_entry_images image ON image.entry_id = entry.id
+      WHERE entry.id = $1
+        AND ($2::text[] IS NULL OR entry.course_context = ANY($2::text[]))
+      GROUP BY entry.id
+      LIMIT 1;
+    `,
+    [entryId, courseFilter]
+  );
+
+  return result.rows[0] || null;
+}
+
 async function leaveQueue(studentId) {
   await query(
     `
@@ -332,6 +369,7 @@ module.exports = {
   completeEntry,
   getActiveQueue,
   getDashboardStats,
+  getQueueEntryForStaff,
   getQueueEntryImage,
   getStudentActiveEntry,
   joinQueue,
