@@ -42,6 +42,7 @@ const {
   completeEntry,
   getActiveQueue,
   getDashboardStats,
+  getQueueEntryImage,
   getStudentActiveEntry,
   joinQueue,
   leaveQueue
@@ -75,6 +76,15 @@ const upload = multer({
     fileSize: 2 * 1024 * 1024
   }
 });
+const queueImageUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 3 * 1024 * 1024,
+    files: 5
+  }
+});
+const allowedQueueImageTypes = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
+const queueImageMaxCount = 5;
 
 const testLoginEnabled = String(process.env.TEST_LOGIN_ENABLED || "").toLowerCase() === "true";
 const studentViewKey = String(process.env.STUDENT_VIEW_KEY || "").trim();
@@ -137,6 +147,129 @@ function normalizeMeetingLocation(input) {
   }
 
   return "";
+}
+
+function sanitizeFilename(value, fallback) {
+  const cleaned = String(value || "")
+    .trim()
+    .replace(/[/\\?%*:|"<>]+/g, "-")
+    .replace(/\s+/g, " ")
+    .slice(0, 120);
+  return cleaned || fallback;
+}
+
+function buildQueueImages(files = []) {
+  if (!Array.isArray(files) || files.length === 0) {
+    return [];
+  }
+
+  if (files.length > queueImageMaxCount) {
+    const error = new Error(`Upload up to ${queueImageMaxCount} images.`);
+    error.code = "INVALID_QUEUE_IMAGES";
+    throw error;
+  }
+
+  return files.map((file, index) => {
+    if (!allowedQueueImageTypes.has(file.mimetype)) {
+      const error = new Error("Images must be PNG, JPEG, GIF, or WebP files.");
+      error.code = "INVALID_QUEUE_IMAGES";
+      throw error;
+    }
+
+    return {
+      data: file.buffer,
+      filename: sanitizeFilename(file.originalname, `queue-image-${index + 1}`),
+      mimeType: file.mimetype,
+      sizeBytes: file.size
+    };
+  });
+}
+
+function htmlToText(html) {
+  return String(html || "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(?:p|div|li|h[1-6])>/gi, "\n")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\s+\n/g, "\n")
+    .replace(/\n\s+/g, "\n")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+}
+
+function sanitizeHelpTopicHtml(inputHtml, fallbackText) {
+  const rawHtml = String(inputHtml || "").trim();
+  if (!rawHtml) {
+    return `<p>${escapeHtml(String(fallbackText || "").trim()).replace(/\n/g, "<br>")}</p>`;
+  }
+
+  const allowedTags = new Set(["p", "div", "br", "strong", "b", "em", "i", "u", "ul", "ol", "li", "code", "pre", "blockquote", "a"]);
+  const voidTags = new Set(["br"]);
+  let output = "";
+  let cursor = 0;
+  const tagPattern = /<\/?[^>]+>/g;
+  let match;
+
+  while ((match = tagPattern.exec(rawHtml)) !== null) {
+    output += escapeHtml(rawHtml.slice(cursor, match.index));
+    const tag = match[0];
+    const tagMatch = tag.match(/^<\s*(\/)?\s*([a-z0-9]+)/i);
+    if (tagMatch) {
+      const isClosing = Boolean(tagMatch[1]);
+      const tagName = tagMatch[2].toLowerCase();
+      if (allowedTags.has(tagName)) {
+        if (isClosing && !voidTags.has(tagName)) {
+          output += `</${tagName}>`;
+        } else if (!isClosing) {
+          if (tagName === "a") {
+            const hrefMatch = tag.match(/\shref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i);
+            const href = String(hrefMatch?.[1] || hrefMatch?.[2] || hrefMatch?.[3] || "").trim();
+            try {
+              const url = new URL(href);
+              if (["http:", "https:", "mailto:"].includes(url.protocol)) {
+                const safeHref = escapeHtml(url.toString());
+                output += `<a href="${safeHref}" target="_blank" rel="noopener noreferrer">`;
+              } else {
+                output += "<a>";
+              }
+            } catch {
+              output += "<a>";
+            }
+          } else {
+            output += voidTags.has(tagName) ? `<${tagName}>` : `<${tagName}>`;
+          }
+        }
+      }
+    }
+    cursor = tagPattern.lastIndex;
+  }
+
+  output += escapeHtml(rawHtml.slice(cursor));
+  return output.trim() || `<p>${escapeHtml(String(fallbackText || "").trim())}</p>`;
+}
+
+function handleQueueImageUpload(req, res, next) {
+  queueImageUpload.array("questionImages", queueImageMaxCount)(req, res, (error) => {
+    if (!error) {
+      return next();
+    }
+
+    const returnPath = getStudentReturnPath(req);
+    if (error instanceof multer.MulterError) {
+      const message =
+        error.code === "LIMIT_FILE_SIZE"
+          ? "Each image must be 3 MB or smaller."
+          : `Upload up to ${queueImageMaxCount} images.`;
+      return redirectWithMessage(res, returnPath, { error: message });
+    }
+
+    return next(error);
+  });
 }
 
 function getAdministratorIds() {
@@ -298,6 +431,45 @@ function renderMeetingLocation(location) {
   return escapeHtml(value);
 }
 
+function getEntryImages(entry) {
+  if (Array.isArray(entry?.images)) {
+    return entry.images;
+  }
+
+  if (typeof entry?.images === "string") {
+    try {
+      const parsed = JSON.parse(entry.images);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  return [];
+}
+
+function renderHelpTopic(entry) {
+  const images = getEntryImages(entry);
+  const topicHtml = sanitizeHelpTopicHtml(entry.help_topic_html, entry.help_topic);
+  const imageLinks = images
+    .map((image, index) => {
+      const imageId = encodeURIComponent(image.id);
+      const filename = String(image.filename || "").trim();
+      const label = filename ? `Image ${index + 1}: ${filename}` : `Image ${index + 1}`;
+      return `
+        <a class="attachment-link" href="/instructor/entries/${entry.id}/images/${imageId}" target="_blank" rel="noopener noreferrer">
+          ${icon("image")} ${escapeHtml(label)}
+        </a>
+      `;
+    })
+    .join("");
+
+  return `
+    <div class="help-topic-html">${topicHtml}</div>
+    ${imageLinks ? `<div class="attachment-list">${imageLinks}</div>` : ""}
+  `;
+}
+
 function icon(name) {
   const icons = {
     activity: '<path d="M3 12h4l3 7 4-14 3 7h4"></path>',
@@ -308,7 +480,8 @@ function icon(name) {
     mail: '<path d="M4 6h16v12H4z"></path><path d="m4 7 8 6 8-6"></path>',
     timer: '<path d="M10 2h4"></path><path d="M12 14l3-3"></path><circle cx="12" cy="14" r="8"></circle>',
     user: '<circle cx="12" cy="8" r="4"></circle><path d="M4 22c1.5-4 4.5-6 8-6s6.5 2 8 6"></path>',
-    x: '<path d="M18 6 6 18"></path><path d="m6 6 12 12"></path>'
+    x: '<path d="M18 6 6 18"></path><path d="m6 6 12 12"></path>',
+    image: '<rect x="3" y="5" width="18" height="14" rx="2"></rect><circle cx="8.5" cy="10" r="1.5"></circle><path d="m21 15-5-5L5 21"></path>'
   };
   const body = icons[name] || icons.activity;
   return `<svg class="icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`;
@@ -544,6 +717,7 @@ function buildStatusPanel(user, activeEntry, studentCourseNames) {
 
   if (activeEntry) {
     const peopleAhead = Math.max(0, Number(activeEntry.queue_position || 1) - 1);
+    const imageCount = getEntryImages(activeEntry).length;
     return `
       <div class="panel">
         <h2>Your place in line</h2>
@@ -563,6 +737,7 @@ function buildStatusPanel(user, activeEntry, studentCourseNames) {
         </div>
         <p>You can only see your own queue position. Other students are not shown.</p>
         <p><strong>${escapeHtml(activeEntry.course_context)}</strong><br>${escapeHtml(activeEntry.help_topic)}</p>
+        ${imageCount > 0 ? `<p><strong>Images:</strong> ${imageCount} attached</p>` : ""}
         <p><strong>Location:</strong> ${renderMeetingLocation(activeEntry.meeting_location)}</p>
         <form method="post" action="/queue/leave?view=student">
           <button class="secondary-button" type="submit">Leave queue</button>
@@ -575,7 +750,7 @@ function buildStatusPanel(user, activeEntry, studentCourseNames) {
     <div class="panel">
       <h2>Join the queue</h2>
       <p>Students only see their own position and how many people are ahead of them.</p>
-      <form class="stack-form" method="post" action="/queue/join?view=student">
+      <form class="stack-form" method="post" action="/queue/join?view=student" enctype="multipart/form-data">
         <label>
           Course or section
           <select name="courseContext" required>
@@ -584,9 +759,29 @@ function buildStatusPanel(user, activeEntry, studentCourseNames) {
               .join("")}
           </select>
         </label>
-        <label>
+        <div class="rich-editor-field">
           What do you need help with?
-          <textarea name="helpTopic" rows="4" maxlength="500" placeholder="Describe the issue or question." required></textarea>
+          <div class="rich-editor-toolbar" aria-label="Formatting controls">
+            <button type="button" data-rich-command="bold" aria-label="Bold"><strong>B</strong></button>
+            <button type="button" data-rich-command="italic" aria-label="Italic"><em>I</em></button>
+            <button type="button" data-rich-command="insertUnorderedList" aria-label="Bulleted list">•</button>
+            <button type="button" data-rich-command="insertOrderedList" aria-label="Numbered list">1.</button>
+            <button type="button" data-rich-command="createLink" aria-label="Insert link">Link</button>
+          </div>
+          <div
+            class="rich-editor"
+            contenteditable="true"
+            role="textbox"
+            aria-label="What do you need help with?"
+            data-rich-editor
+            data-placeholder="Describe the issue or question."></div>
+          <input type="hidden" name="helpTopic" data-rich-text>
+          <input type="hidden" name="helpTopicHtml" data-rich-html>
+        </div>
+        <label>
+          Images
+          <input name="questionImages" type="file" accept="image/png,image/jpeg,image/gif,image/webp" multiple>
+          <span class="field-hint">Optional. Upload up to 5 images. Each image must be 3 MB or smaller.</span>
         </label>
         <label>
           Location
@@ -1163,7 +1358,7 @@ function buildActiveQueueRows(entries, startIndex = 0) {
           <td>${startIndex + index + 1}</td>
           <td>${escapeHtml(entry.student_name)}</td>
           <td>${escapeHtml(entry.course_context)}</td>
-          <td>${escapeHtml(entry.help_topic)}</td>
+          <td>${renderHelpTopic(entry)}</td>
           <td>${renderMeetingLocation(entry.meeting_location)}</td>
           <td>${formatDuration(entry.wait_seconds)}</td>
           <td class="action-cell">
@@ -1438,7 +1633,7 @@ function renderInstructorPage({
               <tr>
                 <td>${escapeHtml(entry.student_name)}</td>
                 <td>${escapeHtml(entry.course_context)}</td>
-                <td>${escapeHtml(entry.help_topic)}</td>
+                <td>${renderHelpTopic(entry)}</td>
                 <td>${renderMeetingLocation(entry.meeting_location)}</td>
                 <td>${formatDuration(entry.wait_seconds)}</td>
                 <td>${new Date(entry.completed_at).toLocaleTimeString()}</td>
@@ -1658,15 +1853,23 @@ app.get("/", async (req, res, next) => {
   }
 });
 
-app.post("/queue/join", requireAuth, async (req, res, next) => {
+app.post("/queue/join", requireAuth, handleQueueImageUpload, async (req, res, next) => {
   const returnPath = getStudentReturnPath(req);
   const courseContext = String(req.body.courseContext || "").trim();
-  const helpTopic = String(req.body.helpTopic || "").trim();
+  const rawHelpTopicHtml = String(req.body.helpTopicHtml || "").trim();
+  const helpTopic = String(req.body.helpTopic || htmlToText(rawHelpTopicHtml)).trim();
+  const helpTopicHtml = sanitizeHelpTopicHtml(rawHelpTopicHtml, helpTopic);
   const meetingLocation = normalizeMeetingLocation(req.body.meetingLocation);
 
   if (!courseContext || !helpTopic || !meetingLocation) {
     return redirectWithMessage(res, returnPath, {
       error: "Course, help topic, and a location of either In person or a valid UNC Zoom link are required."
+    });
+  }
+
+  if (helpTopic.length > 2000 || helpTopicHtml.length > 10000) {
+    return redirectWithMessage(res, returnPath, {
+      error: "Please shorten your question before joining the queue."
     });
   }
 
@@ -1685,13 +1888,16 @@ app.post("/queue/join", requireAuth, async (req, res, next) => {
       });
     }
 
+    const images = buildQueueImages(req.files);
     await joinQueue({
       studentId: req.user.userId,
       studentName: req.user.displayName,
       studentEmail: req.user.email,
       courseContext,
       helpTopic,
-      meetingLocation
+      helpTopicHtml,
+      meetingLocation,
+      images
     });
 
     const [professorNotificationEmails, taNotificationEmails] = await Promise.all([
@@ -1705,7 +1911,8 @@ app.post("/queue/join", requireAuth, async (req, res, next) => {
         studentEmail: req.user.email,
         courseContext,
         helpTopic,
-        meetingLocation
+        meetingLocation,
+        imageCount: images.length
       },
       instructorUrl: `${getExternalBaseUrl(req)}/instructor`,
       extraRecipients: [...professorNotificationEmails, ...taNotificationEmails]
@@ -1718,6 +1925,11 @@ app.post("/queue/join", requireAuth, async (req, res, next) => {
     if (error?.code === "23505") {
       return redirectWithMessage(res, returnPath, {
         error: "You already have an active queue entry."
+      });
+    }
+    if (error?.code === "INVALID_QUEUE_IMAGES") {
+      return redirectWithMessage(res, returnPath, {
+        error: error.message
       });
     }
     next(error);
@@ -2081,6 +2293,23 @@ app.get("/instructor/courses/:courseName/export", requireInstructorAccess, requi
     res.setHeader("Content-Type", "application/json; charset=utf-8");
     res.setHeader("Content-Disposition", `attachment; filename="${safeName}-db-package.json"`);
     return res.send(JSON.stringify(payload, null, 2));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/instructor/entries/:entryId/images/:imageId", requireInstructorAccess, async (req, res, next) => {
+  try {
+    const image = await getQueueEntryImage(req.params.entryId, req.params.imageId, req.instructorAccess.courseNames);
+    if (!image) {
+      return res.status(404).send("Image not found.");
+    }
+
+    res.setHeader("Content-Type", image.mime_type);
+    res.setHeader("Content-Length", String(image.size_bytes));
+    res.setHeader("Content-Disposition", `inline; filename="${sanitizeFilename(image.filename, "queue-image")}"`);
+    res.setHeader("Cache-Control", "private, max-age=300");
+    return res.send(image.data);
   } catch (error) {
     next(error);
   }

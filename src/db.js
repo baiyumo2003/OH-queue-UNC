@@ -36,6 +36,18 @@ async function initDb() {
   `);
 
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS queue_entry_images (
+      id BIGSERIAL PRIMARY KEY,
+      entry_id BIGINT NOT NULL REFERENCES queue_entries(id) ON DELETE CASCADE,
+      filename TEXT NOT NULL,
+      mime_type TEXT NOT NULL,
+      size_bytes INT NOT NULL,
+      data BYTEA NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS course_tas (
       id BIGSERIAL PRIMARY KEY,
       course_name TEXT NOT NULL,
@@ -121,6 +133,11 @@ async function initDb() {
   `);
 
   await pool.query(`
+    ALTER TABLE queue_entries
+    ADD COLUMN IF NOT EXISTS help_topic_html TEXT;
+  `);
+
+  await pool.query(`
     UPDATE queue_entries
     SET meeting_location = 'In person'
     WHERE meeting_location IS NULL;
@@ -147,6 +164,11 @@ async function initDb() {
     CREATE INDEX IF NOT EXISTS queue_entries_completed_idx
     ON queue_entries (completed_at)
     WHERE completed_at IS NOT NULL;
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS queue_entry_images_entry_id_idx
+    ON queue_entry_images (entry_id);
   `);
 
   await pool.query(`

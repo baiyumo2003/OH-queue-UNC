@@ -1,9 +1,5 @@
 (function () {
   const isInstructorPage = window.location.pathname === "/instructor";
-  if (!isInstructorPage) {
-    return;
-  }
-
   const scrollKey = "ohq:instructor-scroll";
   const detailsKey = "ohq:instructor-details";
   const refreshMs = 10000;
@@ -333,38 +329,91 @@
     });
   }
 
+  function bindRichEditors() {
+    document.querySelectorAll("[data-rich-editor]").forEach((editor) => {
+      const form = editor.closest("form");
+      const htmlInput = form?.querySelector("[data-rich-html]");
+      const textInput = form?.querySelector("[data-rich-text]");
+      if (!form || !htmlInput || !textInput) {
+        return;
+      }
+
+      function syncEditorFields() {
+        htmlInput.value = editor.innerHTML.trim();
+        textInput.value = editor.innerText.trim();
+        if (textInput.value) {
+          editor.dataset.invalid = "false";
+        }
+      }
+
+      editor.addEventListener("input", syncEditorFields);
+      editor.addEventListener("blur", syncEditorFields);
+
+      form.querySelectorAll("[data-rich-command]").forEach((button) => {
+        button.addEventListener("click", () => {
+          editor.focus();
+          const command = button.dataset.richCommand;
+          if (command === "createLink") {
+            const url = window.prompt("Enter a link URL");
+            if (url) {
+              document.execCommand(command, false, url);
+            }
+          } else {
+            document.execCommand(command, false, null);
+          }
+          syncEditorFields();
+        });
+      });
+
+      form.addEventListener("submit", (event) => {
+        syncEditorFields();
+        if (!textInput.value) {
+          event.preventDefault();
+          editor.focus();
+          editor.dataset.invalid = "true";
+        }
+      });
+    });
+  }
+
   document.addEventListener("DOMContentLoaded", () => {
-    restoreDetailsState();
-    restoreScroll();
-    bindDetailsState();
-    bindStaffLookups();
+    bindRichEditors();
 
-    document.querySelectorAll("form").forEach((form) => {
-      form.addEventListener("submit", () => saveScroll("form-submit"));
-    });
+    if (isInstructorPage) {
+      restoreDetailsState();
+      restoreScroll();
+      bindDetailsState();
+      bindStaffLookups();
 
-    document.querySelectorAll("a[href^='/instructor'], a[href^='?']").forEach((link) => {
-      link.addEventListener("click", () => saveScroll("link"));
-    });
-
-    document.querySelectorAll("input:not([type='hidden']), textarea, select").forEach((control) => {
-      control.addEventListener("input", () => {
-        formDirty = true;
+      document.querySelectorAll("form").forEach((form) => {
+        form.addEventListener("submit", () => saveScroll("form-submit"));
       });
-      control.addEventListener("change", () => {
-        formDirty = true;
+
+      document.querySelectorAll("a[href^='/instructor'], a[href^='?']").forEach((link) => {
+        link.addEventListener("click", () => saveScroll("link"));
       });
-    });
+
+      document.querySelectorAll("input:not([type='hidden']), textarea, select").forEach((control) => {
+        control.addEventListener("input", () => {
+          formDirty = true;
+        });
+        control.addEventListener("change", () => {
+          formDirty = true;
+        });
+      });
+    }
   });
 
-  window.addEventListener("pagehide", () => saveScroll("pagehide"));
+  if (isInstructorPage) {
+    window.addEventListener("pagehide", () => saveScroll("pagehide"));
 
-  window.setInterval(() => {
-    if (shouldSkipAutoRefresh()) {
-      return;
-    }
+    window.setInterval(() => {
+      if (shouldSkipAutoRefresh()) {
+        return;
+      }
 
-    saveScroll("auto-refresh");
-    window.location.reload();
-  }, refreshMs);
+      saveScroll("auto-refresh");
+      window.location.reload();
+    }, refreshMs);
+  }
 })();

@@ -454,6 +454,57 @@ label {
   font-weight: 600;
 }
 
+.field-hint {
+  color: var(--ink-soft);
+  font-size: 0.86rem;
+  font-weight: 500;
+}
+
+.rich-editor-field {
+  display: grid;
+  gap: 0.45rem;
+  font-weight: 600;
+}
+
+.rich-editor-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.rich-editor-toolbar button {
+  min-width: 2.4rem;
+  padding: 0.42rem 0.65rem;
+  border: 1px solid rgba(23, 32, 51, 0.16);
+  background: #f8fafc;
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.rich-editor {
+  min-height: 9rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid rgba(23, 32, 51, 0.16);
+  border-radius: var(--radius);
+  background: #ffffff;
+  font-weight: 500;
+  outline: none;
+}
+
+.rich-editor:focus {
+  border-color: rgba(37, 99, 235, 0.8);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+}
+
+.rich-editor[data-invalid="true"] {
+  border-color: var(--danger);
+}
+
+.rich-editor:empty::before {
+  color: #777;
+  content: attr(data-placeholder);
+}
+
 input,
 textarea,
 select,
@@ -712,6 +763,44 @@ a.secondary-button:hover {
 
 .data-table tbody tr:hover {
   background: rgba(37, 99, 235, 0.035);
+}
+
+.help-topic-html {
+  max-width: 36rem;
+}
+
+.help-topic-html p,
+.help-topic-html div,
+.help-topic-html ul,
+.help-topic-html ol,
+.help-topic-html blockquote,
+.help-topic-html pre {
+  margin: 0 0 0.55rem;
+}
+
+.help-topic-html :last-child {
+  margin-bottom: 0;
+}
+
+.attachment-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.65rem;
+}
+
+.attachment-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  border-radius: 999px;
+  padding: 0.28rem 0.55rem;
+  background: rgba(37, 99, 235, 0.06);
+  color: var(--accent);
+  font-size: 0.84rem;
+  font-weight: 800;
+  text-decoration: none;
 }
 
 .action-cell {

@@ -36,6 +36,8 @@ Students can:
 
 - Sign in through UNC SSO.
 - Join the queue for one configured course.
+- Describe what they need help with using rich text.
+- Upload up to five supporting images with their question.
 - Enter `In person` or a valid UNC Zoom URL as their location.
 - See their own position, wait time, and number of people ahead.
 - Leave the queue before they are helped.
@@ -258,6 +260,7 @@ For formal student names, ask UNC ITS/Shibboleth to release display-name attribu
 The app creates and updates its own tables at startup:
 
 - `queue_entries`: student queue entries.
+- `queue_entry_images`: optional images uploaded with student queue entries.
 - `app_settings`: dashboard-managed settings such as course choices.
 - `course_tas`: course-specific TA assignments, TA names/emails, and email notification preferences.
 - `course_professors`: administrator-assigned professors for each course, including professor email notification preferences.
@@ -419,7 +422,7 @@ When roster restriction is off, any signed-in UNC student can join that course q
 
 ### Export Course Data
 
-Administrators can use **Export DB package** for a course to download a JSON package containing that course's professor assignments, TA assignments, roster settings, allowed students, and queue entries.
+Administrators can use **Export DB package** for a course to download a JSON package containing that course's professor assignments, TA assignments, roster settings, allowed students, queue entries, and uploaded queue-entry images.
 
 The download is useful for:
 
@@ -438,7 +441,8 @@ The file is plain UTF-8 JSON and is named like `STOR113-db-package.json`. It has
   "tas": [],
   "rosterSettings": {},
   "allowedStudents": [],
-  "queueEntries": []
+  "queueEntries": [],
+  "queueEntryImages": []
 }
 ```
 
@@ -448,7 +452,8 @@ Important fields:
 - `tas`: TA ONYENs, names, emails, and whether each TA receives queue email notifications.
 - `rosterSettings`: whether the course is restricted to the allowed-student roster.
 - `allowedStudents`: manually added or CSV-imported students allowed into roster-restricted queues.
-- `queueEntries`: active, completed, and cancelled queue entries for that course.
+- `queueEntries`: active, completed, and cancelled queue entries for that course. Rich-text questions are stored in `help_topic_html`; plain text remains in `help_topic`.
+- `queueEntryImages`: uploaded images for queue entries. Each row includes `entry_id`, filename, MIME type, size, and `data_base64`.
 
 You can read it with common tools:
 
@@ -456,6 +461,7 @@ You can read it with common tools:
 jq . STOR113-db-package.json
 jq '.professors' STOR113-db-package.json
 jq '.queueEntries[] | {student_name, help_topic, joined_at, completed_at, cancelled_at}' STOR113-db-package.json
+jq -r '.queueEntryImages[0].data_base64' STOR113-db-package.json | base64 --decode > queue-image-1
 ```
 
 Or with Node.js:

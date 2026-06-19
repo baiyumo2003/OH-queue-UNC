@@ -449,7 +449,7 @@ async function importAllowedStudentsFromCsv(courseName, csvText) {
 
 async function getCoursePackage(courseName) {
   const normalizedCourseName = normalizeCourseName(courseName);
-  const [professors, tas, rosterSettings, allowedStudents, entries] = await Promise.all([
+  const [professors, tas, rosterSettings, allowedStudents, entries, entryImages] = await Promise.all([
     getCourseProfessors([normalizedCourseName]),
     query(
       `
@@ -470,6 +470,23 @@ async function getCoursePackage(courseName) {
         ORDER BY joined_at ASC, id ASC;
       `,
       [normalizedCourseName]
+    ),
+    query(
+      `
+        SELECT
+          image.id,
+          image.entry_id,
+          image.filename,
+          image.mime_type,
+          image.size_bytes,
+          encode(image.data, 'base64') AS data_base64,
+          image.created_at
+        FROM queue_entry_images image
+        JOIN queue_entries entry ON entry.id = image.entry_id
+        WHERE entry.course_context = $1
+        ORDER BY image.entry_id ASC, image.id ASC;
+      `,
+      [normalizedCourseName]
     )
   ]);
 
@@ -480,7 +497,8 @@ async function getCoursePackage(courseName) {
     tas: tas.rows,
     rosterSettings: rosterSettings[0] || { course_name: normalizedCourseName, restrict_to_roster: false },
     allowedStudents,
-    queueEntries: entries.rows
+    queueEntries: entries.rows,
+    queueEntryImages: entryImages.rows
   };
 }
 
