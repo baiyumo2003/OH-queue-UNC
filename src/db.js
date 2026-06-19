@@ -40,10 +40,16 @@ async function initDb() {
       id BIGSERIAL PRIMARY KEY,
       course_name TEXT NOT NULL,
       ta_identifier TEXT NOT NULL,
+      ta_name TEXT,
       ta_email TEXT NOT NULL,
       notify_email BOOLEAN NOT NULL DEFAULT true,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+  `);
+
+  await pool.query(`
+    ALTER TABLE course_tas
+    ADD COLUMN IF NOT EXISTS ta_name TEXT;
   `);
 
   await pool.query(`

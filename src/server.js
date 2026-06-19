@@ -947,11 +947,12 @@ function buildTaManagementPanel(managedCourseNames, courseTasByCourse, viewConte
       const tas = courseTasByCourse.get(courseName) || [];
       const rows =
         tas.length === 0
-          ? '<tr><td colspan="4">No TAs assigned to this course yet.</td></tr>'
+          ? '<tr><td colspan="5">No TAs assigned to this course yet.</td></tr>'
           : tas
               .map(
                 (ta) => `
                   <tr>
+                    <td>${escapeHtml(ta.ta_name || ta.ta_identifier)}</td>
                     <td>${escapeHtml(ta.ta_identifier)}</td>
                     <td>${escapeHtml(ta.ta_email)}</td>
                     <td>${ta.notify_email ? "Yes" : "No"}</td>
@@ -977,6 +978,7 @@ function buildTaManagementPanel(managedCourseNames, courseTasByCourse, viewConte
             <table class="data-table compact-table">
               <thead>
                 <tr>
+                  <th>Name</th>
                   <th>TA</th>
                   <th>Email</th>
                   <th>Email notifications</th>
@@ -990,11 +992,16 @@ function buildTaManagementPanel(managedCourseNames, courseTasByCourse, viewConte
               <input type="hidden" name="courseName" value="${escapeHtml(courseName)}">
               <label>
                 TA ONYEN or email
-                <input name="taIdentifier" maxlength="120" placeholder="onyen or onyen@unc.edu" required>
+                <input name="taIdentifier" maxlength="120" placeholder="onyen or onyen@unc.edu" data-ta-identifier required>
+              </label>
+              <p class="lookup-status" data-ta-lookup-status aria-live="polite"></p>
+              <label>
+                TA name
+                <input name="taName" maxlength="200" placeholder="auto-filled from UNC Directory when available" data-ta-name readonly>
               </label>
               <label>
                 TA email
-                <input name="taEmail" type="email" maxlength="200" placeholder="optional; defaults to ONYEN@unc.edu">
+                <input name="taEmail" type="email" maxlength="200" placeholder="auto-filled from UNC Directory when available" data-ta-email readonly>
               </label>
               <label class="checkbox-label">
                 <input name="notifyEmail" type="checkbox" value="true" checked>
@@ -1749,6 +1756,28 @@ app.get("/api/professors/lookup", requireInstructorAccess, requireCourseAdmin, a
   }
 });
 
+app.get("/api/tas/lookup", requireInstructorAccess, async (req, res, next) => {
+  try {
+    const rawIdentifier = String(req.query.identifier || "").trim().toLowerCase();
+    const taIdentifier = normalizeUserId(rawIdentifier);
+    if (!taIdentifier) {
+      return res.status(400).json({ error: "TA ONYEN or email is required." });
+    }
+
+    const directoryProfile = await lookupDirectoryUser(rawIdentifier);
+    const directoryMatched = Boolean(directoryProfile?.displayName || directoryProfile?.email);
+
+    return res.json({
+      found: directoryMatched,
+      taIdentifier,
+      taName: directoryProfile?.displayName || "",
+      taEmail: directoryProfile?.email || (directoryMatched ? `${taIdentifier}@unc.edu` : "")
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.get("/instructor", requireInstructorAccess, async (req, res, next) => {
   try {
     const instructorAccess = req.instructorAccess;
@@ -1908,6 +1937,7 @@ app.post("/instructor/tas", requireInstructorAccess, requireManagedCourse, async
     await addCourseTa({
       courseName: req.body.courseName,
       taIdentifier: req.body.taIdentifier,
+      taName: req.body.taName,
       taEmail: req.body.taEmail,
       notifyEmail: req.body.notifyEmail === "true"
     });

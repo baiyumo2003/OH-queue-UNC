@@ -15,13 +15,18 @@ function normalizeTaEmail(email, identifier) {
   return fallback ? `${fallback}@unc.edu` : "";
 }
 
+function normalizeTaName(value) {
+  return String(value || "").trim();
+}
+
 function normalizeCourseName(value) {
   return String(value || "").trim();
 }
 
-async function addCourseTa({ courseName, taIdentifier, taEmail, notifyEmail }) {
+async function addCourseTa({ courseName, taIdentifier, taName, taEmail, notifyEmail }) {
   const normalizedCourseName = normalizeCourseName(courseName);
   const normalizedIdentifier = normalizeTaIdentifier(taIdentifier || taEmail);
+  const normalizedName = normalizeTaName(taName);
   const normalizedEmail = normalizeTaEmail(taEmail, normalizedIdentifier);
 
   if (!normalizedCourseName || !normalizedIdentifier || !normalizedEmail) {
@@ -30,13 +35,13 @@ async function addCourseTa({ courseName, taIdentifier, taEmail, notifyEmail }) {
 
   const result = await query(
     `
-      INSERT INTO course_tas (course_name, ta_identifier, ta_email, notify_email)
-      VALUES ($1, $2, $3, $4)
+      INSERT INTO course_tas (course_name, ta_identifier, ta_name, ta_email, notify_email)
+      VALUES ($1, $2, $3, $4, $5)
       ON CONFLICT (course_name, ta_identifier)
-      DO UPDATE SET ta_email = EXCLUDED.ta_email, notify_email = EXCLUDED.notify_email
-      RETURNING id, course_name, ta_identifier, ta_email, notify_email;
+      DO UPDATE SET ta_name = EXCLUDED.ta_name, ta_email = EXCLUDED.ta_email, notify_email = EXCLUDED.notify_email
+      RETURNING id, course_name, ta_identifier, ta_name, ta_email, notify_email;
     `,
-    [normalizedCourseName, normalizedIdentifier, normalizedEmail, Boolean(notifyEmail)]
+    [normalizedCourseName, normalizedIdentifier, normalizedName || null, normalizedEmail, Boolean(notifyEmail)]
   );
 
   return result.rows[0];
@@ -65,7 +70,7 @@ async function setCourseTaNotification({ courseName, taIdentifier, notifyEmail }
       SET notify_email = $3
       WHERE course_name = $1
         AND ta_identifier = $2
-      RETURNING id, course_name, ta_identifier, ta_email, notify_email;
+      RETURNING id, course_name, ta_identifier, ta_name, ta_email, notify_email;
     `,
     [normalizedCourseName, normalizedIdentifier, Boolean(notifyEmail)]
   );
@@ -76,7 +81,7 @@ async function setCourseTaNotification({ courseName, taIdentifier, notifyEmail }
 async function getCourseTaById(taId) {
   const result = await query(
     `
-      SELECT id, course_name, ta_identifier, ta_email, notify_email
+      SELECT id, course_name, ta_identifier, ta_name, ta_email, notify_email
       FROM course_tas
       WHERE id = $1
       LIMIT 1;
@@ -91,10 +96,10 @@ async function getCourseTas(courseNames = []) {
   const normalizedCourseNames = courseNames.map(normalizeCourseName).filter(Boolean);
   const result = await query(
     `
-      SELECT id, course_name, ta_identifier, ta_email, notify_email
+      SELECT id, course_name, ta_identifier, ta_name, ta_email, notify_email
       FROM course_tas
       WHERE $1::text[] IS NULL OR course_name = ANY($1::text[])
-      ORDER BY course_name ASC, ta_identifier ASC;
+      ORDER BY course_name ASC, COALESCE(ta_name, ta_identifier) ASC;
     `,
     [normalizedCourseNames.length > 0 ? normalizedCourseNames : null]
   );
@@ -156,6 +161,7 @@ module.exports = {
   groupTasByCourse,
   normalizeTaEmail,
   normalizeTaIdentifier,
+  normalizeTaName,
   removeCourseTa,
   setCourseTaNotification
 };

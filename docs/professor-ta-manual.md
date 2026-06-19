@@ -109,7 +109,7 @@ Manual entries are useful for late adds, guests, or students missing from Canvas
 
 ### Manage TAs for Any Course
 
-Administrators can add or remove TAs under **Course TAs**. This works the same way as the professor workflow described below.
+Administrators can add or remove TAs under **Course TAs**. TA names and email addresses are checked against UNC Directory in the same way professor assignments are checked.
 
 ### Export a Course Data Package
 
@@ -187,9 +187,12 @@ Use **Course TAs** to assign TAs to your courses.
 
 1. Open the course under **Course TAs**.
 2. Enter the TA's ONYEN or UNC email address.
-3. Enter the TA email address if needed. If left blank, the app uses `<onyen>@unc.edu`.
-4. Decide whether this TA should receive queue-join emails for that course.
-5. Click **Add TA**.
+3. The app searches UNC Directory.
+4. If exactly one directory result is found, **TA name** and **TA email** fill automatically.
+5. Decide whether this TA should receive queue-join emails for that course.
+6. Click **Add TA**.
+
+TA name and email normally come from UNC Directory. Manual editing requires confirmation. If UNC Directory does not return a unique result, check the ONYEN or email before adding the TA.
 
 A TA can be assigned to multiple courses.
 
@@ -331,6 +334,6 @@ Check:
 - The student joined the course assigned to that professor or TA.
 - Email notifications are enabled in the app's deployment configuration.
 
-### A professor name or email does not auto-fill
+### A professor or TA name or email does not auto-fill
 
-The app uses UNC Directory for professor lookup. Confirm the ONYEN or email is correct and that UNC Directory returns exactly one result. If the app cannot find a unique result, it warns the administrator instead of saving a stale name or email.
+The app uses UNC Directory for professor and TA lookup. Confirm the ONYEN or email is correct and that UNC Directory returns exactly one result. If the app cannot find a unique result, it warns the user instead of saving a stale name or email.

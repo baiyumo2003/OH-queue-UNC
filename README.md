@@ -185,7 +185,7 @@ npm test
 | `ROLE_SWITCH_USERS` | Legacy role-switch allowlist. Used as an administrator fallback only when `ADMINISTRATOR_IDS` is unset. |
 | `STUDENT_COURSE_NAME` | Initial course list before it is changed from the dashboard. Courses may be separated by commas or spaces. |
 | `DATABASE_SSL` | Set to `true` if your PostgreSQL connection requires SSL. |
-| `DIRECTORY_LOOKUP_URL` | Optional JSON endpoint template for auto-filling professor names, with `{identifier}` replaced by the ONYEN or email. Defaults to UNC Directory search. |
+| `DIRECTORY_LOOKUP_URL` | Optional JSON endpoint template for auto-filling professor and TA names, with `{identifier}` replaced by the ONYEN or email. Defaults to UNC Directory search. |
 | `DIRECTORY_LOOKUP_TOKEN` | Optional bearer token for `DIRECTORY_LOOKUP_URL`. |
 
 ### Development and Testing
@@ -259,7 +259,7 @@ The app creates and updates its own tables at startup:
 
 - `queue_entries`: student queue entries.
 - `app_settings`: dashboard-managed settings such as course choices.
-- `course_tas`: course-specific TA assignments and email notification preferences.
+- `course_tas`: course-specific TA assignments, TA names/emails, and email notification preferences.
 - `course_professors`: administrator-assigned professors for each course, including professor email notification preferences.
 - `course_roster_settings`: whether a course is restricted to the allowed-student roster.
 - `course_allowed_students`: students allowed to join roster-restricted course queues.
@@ -399,7 +399,7 @@ Administrators can add one or more professors to each course under **Course prof
 
 - Course name.
 - TA ONYEN or email.
-- Optional explicit TA email.
+- TA name and TA email, auto-filled from UNC Directory when a unique match is found.
 - Checkbox for queue-join email notifications.
 
 TAs can be assigned to multiple courses.
@@ -445,7 +445,7 @@ The file is plain UTF-8 JSON and is named like `STOR113-db-package.json`. It has
 Important fields:
 
 - `professors`: professor ONYENs/emails assigned to the course and each professor's queue-join email notification preference.
-- `tas`: TA ONYENs/emails and whether each TA receives queue email notifications.
+- `tas`: TA ONYENs, names, emails, and whether each TA receives queue email notifications.
 - `rosterSettings`: whether the course is restricted to the allowed-student roster.
 - `allowedStudents`: manually added or CSV-imported students allowed into roster-restricted queues.
 - `queueEntries`: active, completed, and cancelled queue entries for that course.

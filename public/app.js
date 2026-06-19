@@ -97,12 +97,12 @@
     return document.hidden || formDirty || activeElementIsInteractive();
   }
 
-  function bindProfessorLookup() {
-    document.querySelectorAll("form.professor-form").forEach((form) => {
-      const identifierInput = form.querySelector("[data-professor-identifier]");
-      const nameInput = form.querySelector("[data-professor-name]");
-      const emailInput = form.querySelector("[data-professor-email]");
-      const status = form.querySelector("[data-professor-lookup-status]");
+  function bindDirectoryLookup(config) {
+    document.querySelectorAll(config.formSelector).forEach((form) => {
+      const identifierInput = form.querySelector(config.identifierSelector);
+      const nameInput = form.querySelector(config.nameSelector);
+      const emailInput = form.querySelector(config.emailSelector);
+      const status = form.querySelector(config.statusSelector);
       if (!identifierInput || !nameInput || !emailInput) {
         return;
       }
@@ -127,7 +127,7 @@
         }
 
         const shouldEdit = window.confirm(
-          "Professor name and email should normally come from UNC Directory. Do you want to manually edit this field?"
+          `${config.label} name and email should normally come from UNC Directory. Do you want to manually edit this field?`
         );
         if (shouldEdit) {
           input.readOnly = false;
@@ -180,8 +180,8 @@
 
         lastLookupFound = true;
         setStatus("UNC Directory match found.", "success");
-        const nextName = String(profile.professorName || "").trim();
-        const nextEmail = String(profile.professorEmail || "").trim();
+        const nextName = String(profile[config.nameKey] || "").trim();
+        const nextEmail = String(profile[config.emailKey] || "").trim();
         const currentName = nameInput.value.trim();
         const currentEmail = emailInput.value.trim();
         const nameWouldChange = nextName && currentName && currentName !== nextName;
@@ -192,7 +192,7 @@
 
         if (needsConfirmation) {
           const shouldReplace = window.confirm(
-            "UNC Directory found a different professor name or email. Replace the current values with the directory result?"
+            `UNC Directory found a different ${config.label.toLowerCase()} name or email. Replace the current values with the directory result?`
           );
           if (!shouldReplace) {
             return;
@@ -242,7 +242,7 @@
         lastLookupIdentifier = identifier;
         setStatus("Checking UNC Directory...", "muted");
 
-        lookupInFlight = fetch(`/api/professors/lookup?identifier=${encodeURIComponent(identifier)}`, {
+        lookupInFlight = fetch(`${config.endpoint}?identifier=${encodeURIComponent(identifier)}`, {
           signal: lookupController.signal,
           headers: { Accept: "application/json" }
         })
@@ -297,7 +297,7 @@
         }
 
         if (!lastLookupFound && (!nameInput.value.trim() || !emailInput.value.trim())) {
-          window.alert("No unique UNC Directory result was found. Please check the professor ONYEN or email before adding.");
+          window.alert(`No unique UNC Directory result was found. Please check the ${config.label} ONYEN or email before adding.`);
           return;
         }
 
@@ -307,11 +307,37 @@
     });
   }
 
+  function bindStaffLookups() {
+    bindDirectoryLookup({
+      endpoint: "/api/professors/lookup",
+      emailKey: "professorEmail",
+      emailSelector: "[data-professor-email]",
+      formSelector: "form.professor-form",
+      identifierSelector: "[data-professor-identifier]",
+      label: "Professor",
+      nameKey: "professorName",
+      nameSelector: "[data-professor-name]",
+      statusSelector: "[data-professor-lookup-status]"
+    });
+
+    bindDirectoryLookup({
+      endpoint: "/api/tas/lookup",
+      emailKey: "taEmail",
+      emailSelector: "[data-ta-email]",
+      formSelector: "form.ta-form",
+      identifierSelector: "[data-ta-identifier]",
+      label: "TA",
+      nameKey: "taName",
+      nameSelector: "[data-ta-name]",
+      statusSelector: "[data-ta-lookup-status]"
+    });
+  }
+
   document.addEventListener("DOMContentLoaded", () => {
     restoreDetailsState();
     restoreScroll();
     bindDetailsState();
-    bindProfessorLookup();
+    bindStaffLookups();
 
     document.querySelectorAll("form").forEach((form) => {
       form.addEventListener("submit", () => saveScroll("form-submit"));

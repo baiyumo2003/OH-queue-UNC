@@ -453,10 +453,10 @@ async function getCoursePackage(courseName) {
     getCourseProfessors([normalizedCourseName]),
     query(
       `
-        SELECT id, course_name, ta_identifier, ta_email, notify_email, created_at
+        SELECT id, course_name, ta_identifier, ta_name, ta_email, notify_email, created_at
         FROM course_tas
         WHERE course_name = $1
-        ORDER BY ta_identifier ASC;
+        ORDER BY COALESCE(ta_name, ta_identifier) ASC;
       `,
       [normalizedCourseName]
     ),
