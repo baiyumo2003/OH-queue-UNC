@@ -4,6 +4,8 @@ A lightweight web app for running UNC office hours queues across one or more cou
 
 Students sign in with UNC SSO, choose a course, describe what they need help with, and join the queue. Administrators, professors, and TAs use a staff dashboard to view the live queue, manage entries, review wait-time statistics, and configure course-specific access.
 
+Student guide: [Student User Manual](docs/student-manual.md)
+
 Staff guide: [Professor and TA User Manual](docs/professor-ta-manual.md)
 
 ## Features
@@ -90,7 +92,9 @@ The legacy environment variable `INSTRUCTOR_IDS` can also grant broad staff dash
 ```text
 .
 ├── docs/
-│   └── professor-ta-manual.md
+│   ├── screenshots/
+│   ├── professor-ta-manual.md
+│   └── student-manual.md
 ├── public/
 │   ├── styles.css
 │   └── unc-stor-logo.png
@@ -513,6 +517,7 @@ Current app health endpoint:
 
 ## Related Documentation
 
+- [Student User Manual](docs/student-manual.md)
 - [Professor and TA User Manual](docs/professor-ta-manual.md)
 - UNC CloudApps documentation
 - UNC Shibboleth Proxy documentation
