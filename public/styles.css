@@ -1,4 +1,5 @@
 :root {
+  color-scheme: light;
   --ink: #172033;
   --ink-soft: #5b6472;
   --paper: #f5f7fb;
@@ -12,6 +13,102 @@
   --border: rgba(23, 32, 51, 0.1);
   --shadow: 0 18px 45px rgba(23, 32, 51, 0.08);
   --radius: 8px;
+  --body-bg: linear-gradient(180deg, #eef4fb 0%, var(--paper) 42%, #f8fafc 100%);
+  --hero-bg: rgba(255, 255, 255, 0.94);
+  --brand-mark-bg: rgba(255, 255, 255, 0.78);
+  --brand-mark-border: rgba(75, 156, 211, 0.25);
+  --brand-mark-shadow: 0 14px 28px rgba(19, 41, 75, 0.12);
+  --muted-status: #64748b;
+  --success-status: #176b43;
+  --warning-status: #9a3412;
+  --course-bg: linear-gradient(135deg, rgba(75, 156, 211, 0.1), rgba(37, 99, 235, 0.05));
+  --course-chip-bg: rgba(255, 255, 255, 0.78);
+  --course-chip-text: #13294b;
+  --chip-bg: rgba(255, 255, 255, 0.76);
+  --soft-border: rgba(16, 37, 66, 0.08);
+  --control-border: rgba(23, 32, 51, 0.16);
+  --summary-bg: linear-gradient(135deg, rgba(248, 250, 252, 0.98), rgba(238, 244, 251, 0.82));
+  --accent-tint: rgba(37, 99, 235, 0.1);
+  --accent-tint-strong: rgba(37, 99, 235, 0.14);
+  --accent-border: rgba(37, 99, 235, 0.14);
+  --accent-border-strong: rgba(37, 99, 235, 0.22);
+  --dashboard-hero-bg: linear-gradient(135deg, rgba(37, 99, 235, 0.08), rgba(8, 145, 178, 0.08)), var(--card);
+  --panel-shadow: 0 1px 2px rgba(23, 32, 51, 0.04);
+  --focus-border: rgba(37, 99, 235, 0.8);
+  --focus-ring: 0 0 0 3px rgba(37, 99, 235, 0.14);
+  --toggle-bg: #fffdf8;
+  --editor-toolbar-bg: #f8fafc;
+  --field-bg: #ffffff;
+  --placeholder: #777;
+  --image-bg: #ffffff;
+  --dropzone-bg: rgba(37, 99, 235, 0.045);
+  --button-shadow: 0 8px 18px rgba(37, 99, 235, 0.22);
+  --pill-bg: rgba(79, 134, 198, 0.12);
+  --metric-bg: #fbfdff;
+  --table-hover-bg: rgba(37, 99, 235, 0.035);
+  --preview-bg: linear-gradient(180deg, rgba(248, 250, 252, 0.95), rgba(255, 255, 255, 0.98));
+  --meta-bg: #f8fafc;
+  --success-bg: rgba(45, 106, 79, 0.12);
+  --error-bg: rgba(141, 8, 1, 0.12);
+  --gold-bg: rgba(217, 119, 6, 0.12);
+  --cyan-bg: rgba(8, 145, 178, 0.1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --ink: #e5edf8;
+    --ink-soft: #aab7ca;
+    --paper: #08111f;
+    --card: #111a2a;
+    --accent: #60a5fa;
+    --accent-deep: #93c5fd;
+    --gold: #fbbf24;
+    --success: #86efac;
+    --danger: #fca5a5;
+    --cyan: #67e8f9;
+    --border: rgba(226, 232, 240, 0.14);
+    --shadow: 0 18px 45px rgba(0, 0, 0, 0.42);
+    --body-bg: linear-gradient(180deg, #050b16 0%, var(--paper) 46%, #0d1624 100%);
+    --hero-bg: rgba(15, 23, 42, 0.94);
+    --brand-mark-bg: rgba(226, 232, 240, 0.08);
+    --brand-mark-border: rgba(147, 197, 253, 0.26);
+    --brand-mark-shadow: 0 14px 28px rgba(0, 0, 0, 0.28);
+    --muted-status: #9fb0c5;
+    --success-status: #86efac;
+    --warning-status: #fdba74;
+    --course-bg: linear-gradient(135deg, rgba(96, 165, 250, 0.14), rgba(103, 232, 249, 0.08));
+    --course-chip-bg: rgba(15, 23, 42, 0.78);
+    --course-chip-text: #dbeafe;
+    --chip-bg: rgba(15, 23, 42, 0.78);
+    --soft-border: rgba(226, 232, 240, 0.1);
+    --control-border: rgba(226, 232, 240, 0.2);
+    --summary-bg: linear-gradient(135deg, rgba(17, 26, 42, 0.98), rgba(30, 41, 59, 0.82));
+    --accent-tint: rgba(96, 165, 250, 0.16);
+    --accent-tint-strong: rgba(96, 165, 250, 0.22);
+    --accent-border: rgba(96, 165, 250, 0.24);
+    --accent-border-strong: rgba(96, 165, 250, 0.34);
+    --dashboard-hero-bg: linear-gradient(135deg, rgba(96, 165, 250, 0.14), rgba(103, 232, 249, 0.1)), var(--card);
+    --panel-shadow: 0 1px 2px rgba(0, 0, 0, 0.26);
+    --focus-border: rgba(96, 165, 250, 0.9);
+    --focus-ring: 0 0 0 3px rgba(96, 165, 250, 0.2);
+    --toggle-bg: rgba(15, 23, 42, 0.92);
+    --editor-toolbar-bg: #162236;
+    --field-bg: #0c1524;
+    --placeholder: #94a3b8;
+    --image-bg: #0b1220;
+    --dropzone-bg: rgba(96, 165, 250, 0.1);
+    --button-shadow: 0 8px 18px rgba(37, 99, 235, 0.34);
+    --pill-bg: rgba(96, 165, 250, 0.16);
+    --metric-bg: #0d1727;
+    --table-hover-bg: rgba(96, 165, 250, 0.08);
+    --preview-bg: linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(17, 26, 42, 0.98));
+    --meta-bg: #0d1727;
+    --success-bg: rgba(34, 197, 94, 0.14);
+    --error-bg: rgba(248, 113, 113, 0.14);
+    --gold-bg: rgba(251, 191, 36, 0.14);
+    --cyan-bg: rgba(103, 232, 249, 0.13);
+  }
 }
 
 * {
@@ -23,7 +120,7 @@ body {
   min-height: 100vh;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: var(--ink);
-  background: linear-gradient(180deg, #eef4fb 0%, var(--paper) 42%, #f8fafc 100%);
+  background: var(--body-bg);
 }
 
 .page-shell {
@@ -33,8 +130,8 @@ body {
 }
 
 .hero-card {
-  background: rgba(255, 255, 255, 0.94);
-  border: 1px solid rgba(23, 32, 51, 0.08);
+  background: var(--hero-bg);
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 1.5rem;
   box-shadow: var(--shadow);
@@ -75,9 +172,9 @@ body {
   flex: 0 0 auto;
   place-items: center;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.78);
-  border: 1px solid rgba(75, 156, 211, 0.25);
-  box-shadow: 0 14px 28px rgba(19, 41, 75, 0.12);
+  background: var(--brand-mark-bg);
+  border: 1px solid var(--brand-mark-border);
+  box-shadow: var(--brand-mark-shadow);
   overflow: hidden;
 }
 
@@ -91,17 +188,17 @@ body {
 .lookup-status {
   min-height: 1.2rem;
   margin: -0.35rem 0 0.2rem;
-  color: #64748b;
+  color: var(--muted-status);
   font-size: 0.9rem;
   font-weight: 700;
 }
 
 .lookup-status[data-tone="success"] {
-  color: #176b43;
+  color: var(--success-status);
 }
 
 .lookup-status[data-tone="warning"] {
-  color: #9a3412;
+  color: var(--warning-status);
 }
 
 .brand-copy {
@@ -120,9 +217,9 @@ body {
   gap: 0.75rem;
   align-items: center;
   padding: 0.75rem;
-  border: 1px solid rgba(37, 99, 235, 0.14);
+  border: 1px solid var(--accent-border);
   border-radius: 12px;
-  background: linear-gradient(135deg, rgba(75, 156, 211, 0.1), rgba(37, 99, 235, 0.05));
+  background: var(--course-bg);
 }
 
 .course-directory-label {
@@ -145,10 +242,10 @@ body {
   display: inline-flex;
   align-items: center;
   min-height: 2rem;
-  border: 1px solid rgba(37, 99, 235, 0.16);
+  border: 1px solid var(--accent-border);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.78);
-  color: #13294b;
+  background: var(--course-chip-bg);
+  color: var(--course-chip-text);
   padding: 0.35rem 0.65rem;
   font-size: 0.9rem;
   font-weight: 800;
@@ -237,7 +334,7 @@ h3 {
   border-radius: var(--radius);
   border: 1px solid var(--border);
   padding: 1rem;
-  box-shadow: 0 1px 2px rgba(23, 32, 51, 0.04);
+  box-shadow: var(--panel-shadow);
 }
 
 .dashboard-hero {
@@ -245,7 +342,7 @@ h3 {
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
-  background: linear-gradient(135deg, rgba(37, 99, 235, 0.08), rgba(8, 145, 178, 0.08)), var(--card);
+  background: var(--dashboard-hero-bg);
 }
 
 .dashboard-hero p:last-child {
@@ -263,9 +360,9 @@ h3 {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  border: 1px solid rgba(23, 32, 51, 0.1);
+  border: 1px solid var(--border);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.76);
+  background: var(--chip-bg);
   padding: 0.45rem 0.65rem;
   color: var(--ink);
   font-weight: 700;
@@ -291,7 +388,7 @@ h3 {
   display: grid;
   gap: 0.85rem;
   padding: 1rem 0;
-  border-top: 1px solid rgba(16, 37, 66, 0.08);
+  border-top: 1px solid var(--soft-border);
 }
 
 .course-admin-card:first-child,
@@ -315,9 +412,9 @@ h3 {
   align-items: center;
   min-height: 3rem;
   padding: 0.75rem;
-  border: 1px solid rgba(16, 37, 66, 0.1);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: linear-gradient(135deg, rgba(248, 250, 252, 0.98), rgba(238, 244, 251, 0.82));
+  background: var(--summary-bg);
   cursor: pointer;
   list-style: none;
 }
@@ -333,7 +430,7 @@ h3 {
   height: 1.65rem;
   place-items: center;
   border-radius: 999px;
-  background: rgba(37, 99, 235, 0.1);
+  background: var(--accent-tint);
   color: var(--accent-deep);
   font-weight: 900;
 }
@@ -387,9 +484,9 @@ h3 {
   align-items: center;
   gap: 0.25rem;
   padding: 0.25rem;
-  border: 1px solid rgba(16, 37, 66, 0.14);
+  border: 1px solid var(--border);
   border-radius: 999px;
-  background: #fffdf8;
+  background: var(--toggle-bg);
 }
 
 .view-toggle form {
@@ -415,7 +512,7 @@ h3 {
 
 .view-toggle a.active,
 .view-toggle button.active {
-  background: rgba(79, 134, 198, 0.14);
+  background: var(--accent-tint-strong);
   color: var(--accent-deep);
   font-weight: 700;
 }
@@ -440,7 +537,7 @@ h3 {
   display: grid;
   gap: 0.6rem;
   padding-top: 1rem;
-  border-top: 1px solid rgba(16, 37, 66, 0.08);
+  border-top: 1px solid var(--soft-border);
 }
 
 .stack-form {
@@ -487,8 +584,8 @@ label {
 .rich-editor-toolbar button {
   min-width: 2.4rem;
   padding: 0.42rem 0.65rem;
-  border: 1px solid rgba(23, 32, 51, 0.16);
-  background: #f8fafc;
+  border: 1px solid var(--control-border);
+  background: var(--editor-toolbar-bg);
   color: var(--ink);
   font-weight: 800;
 }
@@ -498,17 +595,17 @@ label {
   max-height: 34rem;
   overflow-y: auto;
   padding: 0.95rem 1rem;
-  border: 1px solid rgba(23, 32, 51, 0.16);
+  border: 1px solid var(--control-border);
   border-radius: var(--radius);
-  background: #ffffff;
+  background: var(--field-bg);
   font-weight: 500;
   line-height: 1.55;
   outline: none;
 }
 
 .rich-editor:focus {
-  border-color: rgba(37, 99, 235, 0.8);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+  border-color: var(--focus-border);
+  box-shadow: var(--focus-ring);
 }
 
 .rich-editor[data-invalid="true"] {
@@ -516,7 +613,7 @@ label {
 }
 
 .rich-editor:empty::before {
-  color: #777;
+  color: var(--placeholder);
   content: attr(data-placeholder);
 }
 
@@ -525,17 +622,17 @@ label {
   max-width: min(100%, 34rem);
   max-height: 26rem;
   margin: 0.8rem 0;
-  border: 1px solid rgba(16, 37, 66, 0.14);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: #ffffff;
+  background: var(--image-bg);
   object-fit: contain;
 }
 
 .image-paste-dropzone {
-  border: 1px dashed rgba(37, 99, 235, 0.35);
+  border: 1px dashed var(--accent-border-strong);
   border-radius: var(--radius);
   padding: 0.7rem 0.85rem;
-  background: rgba(37, 99, 235, 0.045);
+  background: var(--dropzone-bg);
   color: var(--ink-soft);
   font-size: 0.9rem;
   font-weight: 700;
@@ -552,9 +649,9 @@ label {
   align-items: center;
   gap: 0.7rem;
   padding: 0.55rem;
-  border: 1px solid rgba(16, 37, 66, 0.12);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: #ffffff;
+  background: var(--field-bg);
 }
 
 .pasted-image-card img {
@@ -574,7 +671,7 @@ label {
 
 .pasted-image-card button {
   padding: 0.4rem 0.65rem;
-  border: 1px solid rgba(16, 37, 66, 0.16);
+  border: 1px solid var(--control-border);
   background: transparent;
   color: var(--ink);
   font-size: 0.85rem;
@@ -595,8 +692,9 @@ select {
   width: 100%;
   padding: 0.75rem 0.85rem;
   border-radius: var(--radius);
-  border: 1px solid rgba(23, 32, 51, 0.16);
-  background: #ffffff;
+  border: 1px solid var(--control-border);
+  background: var(--field-bg);
+  color: var(--ink);
 }
 
 button,
@@ -625,14 +723,14 @@ a.secondary-button:hover {
   background: var(--accent);
   color: white;
   border: 0;
-  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.22);
+  box-shadow: var(--button-shadow);
 }
 
 .secondary-button,
 .ghost-button {
   background: transparent;
   color: var(--ink);
-  border: 1px solid rgba(16, 37, 66, 0.18);
+  border: 1px solid var(--control-border);
 }
 
 .compact-button {
@@ -653,7 +751,7 @@ a.secondary-button:hover {
   justify-content: space-between;
   gap: 1rem;
   padding: 0.9rem 0;
-  border-bottom: 1px solid rgba(16, 37, 66, 0.08);
+  border-bottom: 1px solid var(--soft-border);
 }
 
 .queue-item:last-child {
@@ -680,7 +778,7 @@ a.secondary-button:hover {
 .pill {
   align-self: center;
   white-space: nowrap;
-  background: rgba(79, 134, 198, 0.12);
+  background: var(--pill-bg);
   color: var(--accent-deep);
   padding: 0.38rem 0.7rem;
   border-radius: 999px;
@@ -715,7 +813,7 @@ a.secondary-button:hover {
   align-items: center;
   justify-content: center;
   border-radius: var(--radius);
-  background: rgba(37, 99, 235, 0.1);
+  background: var(--accent-tint);
   color: var(--accent-deep);
   margin-bottom: 0.35rem;
 }
@@ -739,17 +837,17 @@ a.secondary-button:hover {
 }
 
 .stat-success .stat-icon {
-  background: rgba(21, 128, 61, 0.1);
+  background: var(--success-bg);
   color: var(--success);
 }
 
 .stat-warning .stat-icon {
-  background: rgba(217, 119, 6, 0.12);
+  background: var(--gold-bg);
   color: var(--gold);
 }
 
 .stat-accent {
-  border-color: rgba(37, 99, 235, 0.22);
+  border-color: var(--accent-border-strong);
 }
 
 .course-metrics-grid {
@@ -764,7 +862,7 @@ a.secondary-button:hover {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 0.9rem;
-  background: #fbfdff;
+  background: var(--metric-bg);
 }
 
 .course-metric-heading {
@@ -785,7 +883,7 @@ a.secondary-button:hover {
   justify-content: center;
   border-radius: var(--radius);
   color: var(--cyan);
-  background: rgba(8, 145, 178, 0.1);
+  background: var(--cyan-bg);
 }
 
 .course-metric-values {
@@ -807,12 +905,12 @@ a.secondary-button:hover {
 }
 
 .alert.success {
-  background: rgba(45, 106, 79, 0.12);
+  background: var(--success-bg);
   color: var(--success);
 }
 
 .alert.error {
-  background: rgba(141, 8, 1, 0.12);
+  background: var(--error-bg);
   color: var(--danger);
 }
 
@@ -832,12 +930,12 @@ a.secondary-button:hover {
 .data-table td {
   text-align: left;
   padding: 0.78rem 0.6rem;
-  border-bottom: 1px solid rgba(16, 37, 66, 0.08);
+  border-bottom: 1px solid var(--soft-border);
   vertical-align: top;
 }
 
 .data-table tbody tr:hover {
-  background: rgba(37, 99, 235, 0.035);
+  background: var(--table-hover-bg);
 }
 
 .help-topic-html {
@@ -849,9 +947,9 @@ a.secondary-button:hover {
   max-width: min(100%, 34rem);
   max-height: 26rem;
   margin: 0.8rem 0;
-  border: 1px solid rgba(16, 37, 66, 0.14);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: #ffffff;
+  background: var(--image-bg);
   object-fit: contain;
 }
 
@@ -872,9 +970,9 @@ a.secondary-button:hover {
   display: grid;
   gap: 0.85rem;
   padding: 1rem;
-  border: 1px solid rgba(16, 37, 66, 0.1);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  background: linear-gradient(180deg, rgba(248, 250, 252, 0.95), rgba(255, 255, 255, 0.98));
+  background: var(--preview-bg);
 }
 
 .student-request-preview .help-topic-html {
@@ -898,9 +996,9 @@ a.secondary-button:hover {
   gap: 0.85rem;
   margin: 1rem 0;
   padding: 0.9rem 1rem;
-  border: 1px solid rgba(16, 37, 66, 0.1);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  background: #ffffff;
+  background: var(--field-bg);
 }
 
 .edit-queue-details > summary {
@@ -930,9 +1028,9 @@ a.secondary-button:hover {
   display: block;
   width: 100%;
   max-height: 16rem;
-  border: 1px solid rgba(16, 37, 66, 0.14);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: #ffffff;
+  background: var(--image-bg);
   object-fit: contain;
 }
 
@@ -963,9 +1061,9 @@ a.secondary-button:hover {
 
 .preview-meta-grid div {
   padding: 0.8rem;
-  border: 1px solid rgba(16, 37, 66, 0.1);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: #f8fafc;
+  background: var(--meta-bg);
 }
 
 .preview-meta-grid dt {
@@ -983,7 +1081,7 @@ a.secondary-button:hover {
 
 .preview-topic {
   padding-top: 1rem;
-  border-top: 1px solid rgba(16, 37, 66, 0.08);
+  border-top: 1px solid var(--soft-border);
 }
 
 .action-cell {
@@ -1050,7 +1148,7 @@ a.secondary-button:hover {
 
   .data-table tr {
     padding: 0.75rem 0;
-    border-bottom: 1px solid rgba(16, 37, 66, 0.08);
+    border-bottom: 1px solid var(--soft-border);
   }
 
   .data-table td {
